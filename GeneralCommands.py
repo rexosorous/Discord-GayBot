@@ -7,6 +7,15 @@ import utilities as util
 
 
 
+def setup(bot):
+    '''
+    Used by discord.commands.Bot.load_extension() to load this cog onto the bot.
+    This is required to allow hot reloading with GeneralCommands.reload()
+    '''
+    bot.add_cog(GeneralCommands(bot))
+
+
+
 class GeneralCommands(commands.Cog):
     '''
     Holds all the general use commands.
@@ -85,3 +94,19 @@ class GeneralCommands(commands.Cog):
             await ctx.message.add_reaction('☑️')
             await self.bot.get_cog('VoiceCommands').kill()
             await self.bot.close()
+
+
+
+    @commands.command()
+    async def reload(self, ctx):
+        '''
+        Hot reloads all the command cogs so the bot doesn't need to be shut down to enact changes
+
+        Note:
+            Can only be used by me.
+            Yes this technically doxxes me, but whatever.
+        '''
+        if ctx.author.id == 158371798327492608:
+            self.bot.reload_extension('GeneralCommands')
+            self.bot.reload_extension('VoiceCommands')
+            await ctx.message.add_reaction('☑️')

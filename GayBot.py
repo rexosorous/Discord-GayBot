@@ -2,10 +2,6 @@
 from discord import Game
 from discord.ext import commands
 
-# local modules
-from GeneralCommands import GeneralCommands
-from VoiceCommands import VoiceCommands
-
 
 
 '''
@@ -23,8 +19,8 @@ if __name__ == '__main__':
     essentially a main.py file
     '''
     bot = commands.Bot(command_prefix='gay ', activity=Game(name='gay help'))
-    bot.add_cog(GeneralCommands(bot))
-    bot.add_cog(VoiceCommands(bot))
+    bot.load_extension('GeneralCommands')
+    bot.load_extension('VoiceCommands')
 
     @bot.event
     async def on_ready():

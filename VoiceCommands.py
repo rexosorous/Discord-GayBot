@@ -13,6 +13,15 @@ import utilities as util
 
 
 
+def setup(bot):
+    '''
+    Used by discord.commands.Bot.load_extension() to load this cog onto the bot.
+    This is required to allow hot reloading with GeneralCommands.reload()
+    '''
+    bot.add_cog(VoiceCommands(bot))
+
+
+
 class VoiceCommands(commands.Cog):
     '''
     Holds all the voice-channel related commands
