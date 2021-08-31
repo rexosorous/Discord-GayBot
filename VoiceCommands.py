@@ -108,14 +108,27 @@ class VoiceCommands(commands.Cog):
 
 
 
-    @commands.command(name='checkqueue', aliases=['queue', 'q', 'checkq'])
+    @commands.group(name='queue', aliases=['q'], case_insensitive=True, invoke_without_command=True)
+    async def queue(self, ctx):
+        '''
+        Really just a command group so self.check_queue and self.clear_queue are more intuitive in their invocations
+        In the event that this is called, default to self.check_queue
+        '''
+        await self.check_queue(ctx)
+
+
+
+    @queue.command(name='check', aliases=['list', 'ls', 'show'])
     async def check_queue(self, ctx):
         '''
         Shows all items in the clip queue
+
+        Note:
+            Is part of a group so is invoked similarly to 'queue check'
         '''
         msg = ''
         for index in range(len(self.queue)):
-            msg += f'{index}: temp\n'
+            msg += f'{index}: {self.queue[index]["title"]}\n'
         if msg:
             await ctx.send(msg)
         else:
@@ -123,10 +136,13 @@ class VoiceCommands(commands.Cog):
 
 
 
-    @commands.command(name='clearqueue', aliases=['clear', 'clearq'])
+    @queue.command(name='clear')
     async def clear_queue(self, ctx):
         '''
         Clears all items from the clip queue
+
+        Note:
+            Is part of a group so is invoked similarly to 'queue clear'
         '''
         self.queue = list()
 
@@ -200,8 +216,8 @@ class VoiceCommands(commands.Cog):
             Is part of a group so is invoked similarly to 'gay soundboard random'
         ''' 
         all_clips = listdir('soundboard/')
-        filename = f'soundboard/{random.choice(all_clips)}'
-        audio_clip = discord.FFmpegPCMAudio(filename, **self.FFMPEG_OPTIONS)
+        filename = random.choice(all_clips)
+        audio_clip = discord.FFmpegPCMAudio(f'soundboard/{filename}', **self.FFMPEG_OPTIONS)
         data = {
             'ffmpeg': audio_clip,
             'title': filename[:-4]
@@ -210,7 +226,7 @@ class VoiceCommands(commands.Cog):
         
 
 
-    @soundboard.command(name='checksoundboard', aliases=['help', 'check', 'names', 'list', 'ls'])
+    @soundboard.command(name='checksoundboard', aliases=['help', 'check', 'names', 'list', 'ls', 'show'])
     async def check_soundboard(self, ctx):
         '''
         Shows all the clips that the soundboard can play
