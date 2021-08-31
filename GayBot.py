@@ -6,6 +6,8 @@ from discord.ext import commands
 from GeneralCommands import GeneralCommands
 from VoiceCommands import VoiceCommands
 
+
+
 '''
 DEPENDENCIES:
     discord.py[voice]
@@ -15,7 +17,11 @@ DEPENDENCIES:
 '''
 
 
+
 if __name__ == '__main__':
+    '''
+    essentially a main.py file
+    '''
     bot = commands.Bot(command_prefix='gay ', help_command=None, activity=Game(name='gay help'))
     @bot.event
     async def on_ready():

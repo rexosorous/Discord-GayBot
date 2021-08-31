@@ -14,19 +14,45 @@ import utilities as util
 
 
 class VoiceCommands(commands.Cog):
+    '''
+    Holds all the voice-channel related commands
+    Things like playing youtube videos or soundboard
+
+    Attributes:
+        FFMPEG_OPTIONS (dict): options sent to ffmpeg
+        voice (discord.VoiceClient): is set to None on first init
+        queue (list[dict]): has the data for each clip to be played. the dicts have the form:
+            {
+                'ffmpeg': discord.AudioSource,
+                'title': str,
+                'duration': int,        # seconds
+                'thumbnail_url': str,
+                'audio_url': str,       # raw audio url
+                'video_url': str]       # youtube webpage
+            }
+            note that soundboard audio clips will only have the first 2 fields
+        
+    '''
     def __init__(self, bot):
         self.bot = bot
-        self.voice = None   # only None when init. should be discord.VoiceClient otherwise
-        self.queue = list() # should be list of discord.AudioSource most likely created from discord.FFmpegPCMAudio
         self.FFMPEG_OPTIONS = {'executable': 'ffmpeg/ffmpeg.exe'}  # so the end user doesn't have to have ffmpeg installed to PATH
+        self.voice = None
+        self.queue = list()
  
 
 
-#########################################
+####################################################################################################################################
 # GENERIC FUNCTIONS
-#########################################
+####################################################################################################################################
 
     async def play_next(self):
+        '''
+        A recursive function that plays all the audio clips in the queue
+        If there are no more audio clips in the queue, it disconnects
+
+        Note:
+            NOT A COMMAND
+        '''
         if self.queue:
             clip_data = self.queue.pop(0)
             self.voice.play(clip_data['ffmpeg'])
@@ -42,9 +68,21 @@ class VoiceCommands(commands.Cog):
 
     async def join_and_play(self, ctx, clip_data):
         '''
-        checks if the bot needs to join a channel
-        checks if the user is even in a vc to being with
-        checks if the user is in the same vc as the bot (if the bot is connected to one)
+        Does all the preparations needed to start playing audio.
+        1. Determines if the bot should even play audio (ie. if the command is legal)
+            a command is legal if:
+            the invoker is in a voice channel AND 
+            (the bot is not already in a voice channel OR 
+            the invoker is in the same voice channel)
+        2. Joins a voice channel if the bot isn't already in one
+        3. Adds a clip to the queue
+        4. Starts playing clips if the bot isn't already doing so
+
+        Args:
+            clip_data (dict): see self.queue for dict format
+
+        Note:
+            NOT A COMMAND
         '''
         if ctx.message.author.voice:
             channel = ctx.message.author.voice.channel
@@ -63,12 +101,18 @@ class VoiceCommands(commands.Cog):
 
     @commands.command(aliases=['next'])
     async def skip(self, ctx):
+        '''
+        Skips the currently playing audio clip if there is one
+        '''
         self.voice.stop()
 
 
 
     @commands.command(name='checkqueue', aliases=['queue', 'q', 'checkq'])
     async def check_queue(self, ctx):
+        '''
+        Shows all items in the clip queue
+        '''
         msg = ''
         for index in range(len(self.queue)):
             msg += f'{index}: temp\n'
@@ -81,12 +125,22 @@ class VoiceCommands(commands.Cog):
 
     @commands.command(name='clearqueue', aliases=['clear', 'clearq'])
     async def clear_queue(self, ctx):
+        '''
+        Clears all items from the clip queue
+        '''
         self.queue = list()
 
 
 
     @commands.command(name='remove')
     async def remove_from_queue(self, ctx, index):
+        '''
+        Removes one item from the clip queue based on index
+
+        Args:
+            index (int or str): the index of the clip to be removed
+                can also be 'first', 'next', 'last', or 'end
+        '''
         if index.lower() in ['first', 'next']:
             index = 0
         elif index.lower() in ['last', 'end']:
@@ -104,9 +158,8 @@ class VoiceCommands(commands.Cog):
     @commands.command(aliases=['leave', 'kick', 'fuckoff'])
     async def stop(self, ctx = None):
         '''
-        disconnects from voice channel
+        Stops playing audio and disconnects from the voice channel
         '''
-        # self.logger.info(f'{ctx.author.name}: {ctx.message.content}')
         if not self.voice:
             return
         self.voice.stop()
@@ -115,22 +168,24 @@ class VoiceCommands(commands.Cog):
 
 
 
-#########################################
+####################################################################################################################################
 # SOUNDBOARD FUNCTIONS
-#########################################
+####################################################################################################################################
 
     @commands.group(aliases=['sb', 'clip'], case_insensitive=True, invoke_without_command=True)
-    async def soundboard(self, ctx, *search_terms):
+    async def soundboard(self, ctx, *search_term):
         '''
-        joins a voice channel and plays the specified soundboard clip
-        '''
-        # self.logger.info(f'{ctx.author.name}: {ctx.message.content}')         
-        search = ' '.join(search_terms)
-        clip_dir = util.get_clip(search)
-        audio_clip = discord.FFmpegPCMAudio(clip_dir, **self.FFMPEG_OPTIONS)
+        Adds a soundboard clip to the queue and starts playing the queue if necessary
+
+        Args:
+            search_term (tuple[str])
+        '''     
+        search_term = ' '.join(search_term)
+        filename = util.get_clip(search_term)
+        audio_clip = discord.FFmpegPCMAudio(f'soundboard/{filename}', **self.FFMPEG_OPTIONS)
         data = {
             'ffmpeg': audio_clip,
-            'title': clip_dir[clip_dir.find('/')+1 : -4]
+            'title': filename[:-4]
         }
         await self.join_and_play(ctx, data)
 
@@ -139,26 +194,30 @@ class VoiceCommands(commands.Cog):
     @soundboard.command(name='cliproulette', aliases=['roulette', 'random', 'rand', 'rando'])
     async def clip_roulette(self, ctx):
         '''
-        randomly selects an audio clip for gay soundboard to play
+        Randomly selects a soundboard clip, adds it to the queue, and starts playing the queue if necessary
+
+        Note:
+            Is part of a group so is invoked similarly to 'gay soundboard random'
         ''' 
         all_clips = listdir('soundboard/')
-        selected_clip = f'soundboard/{random.choice(all_clips)}'
-        audio_clip = discord.FFmpegPCMAudio(selected_clip, **self.FFMPEG_OPTIONS)
+        filename = f'soundboard/{random.choice(all_clips)}'
+        audio_clip = discord.FFmpegPCMAudio(filename, **self.FFMPEG_OPTIONS)
         data = {
             'ffmpeg': audio_clip,
-            'title': selected_clip[:-4]
+            'title': filename[:-4]
         }
-        await self.join_and_play(ctx, audio_clip)
+        await self.join_and_play(ctx, data)
         
 
 
     @soundboard.command(name='checksoundboard', aliases=['help', 'check', 'names', 'list', 'ls'])
     async def check_soundboard(self, ctx):
         '''
-        shows all the clips that the soundboard can play
-        '''
-        # self.logger.info(f'{ctx.author.name}: {ctx.message.content}')
+        Shows all the clips that the soundboard can play
 
+        Note:
+            Is part of a group so is invoked similarly to 'gay soundboard list'
+        '''
         clip_names = []
         for clip in listdir('soundboard/'):
             clip_names.append(f'{clip[:-4]}')
@@ -170,26 +229,35 @@ class VoiceCommands(commands.Cog):
 
         
 
-#########################################
+####################################################################################################################################
 # YOUTUBE FUNCTIONS
-#########################################
+####################################################################################################################################
 
     @commands.command(name='play', aliases=['yt', 'youtube', 'music'])
     async def search_youtube(self, ctx, *search_term):
+        '''
+        Searches youtube and selects the top-most video to play
+
+        Args:
+            search_term (tuple[str])
+
+        Note:
+            A cookiefile saved as 'cookies.txt' is required to play sensitive videos
+        '''
         search_term = ' '.join(search_term)
         yt_options = {'verbose': 'False', 'format': 'bestaudio', 'noplaylist': 'True', 'cookiefile': 'cookies.txt'}
         with YoutubeDL(yt_options) as ytdl:
             info = ytdl.extract_info(f'ytsearch:{search_term}', download=False)['entries'][0]
         url = info['url']
-        ffmpeg_addtl_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+        ffmpeg_addtl_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}    # this prevents the bot from prematurely disconnecting if it loses connection for a short period of time
         audio_clip = discord.FFmpegPCMAudio(url, **self.FFMPEG_OPTIONS, **ffmpeg_addtl_options)
         audio_clip_volume = discord.PCMVolumeTransformer(audio_clip, volume=0.3)
         data = {
             'ffmpeg': audio_clip_volume,
             'title': info['title'],
-            'duration': info['duration'],
+            'duration': info['duration'],           # in seconds
             'thumbnail_url': info['thumbnail'],
-            'audio_url': info['url'],             # this is the raw audio url
-            'video_url': info['webpage_url']   # this is the youtube webpage
+            'audio_url': info['url'],               # raw audio url
+            'video_url': info['webpage_url']        # youtube webpage
         }
         await self.join_and_play(ctx, data)

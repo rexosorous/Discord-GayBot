@@ -3,14 +3,13 @@ from random import randint
 from sys import stdout
 from os import listdir
 import logging
-import json
 
 # dependencies
 from fuzzywuzzy import fuzz
 
 
 
-commands = ('```'
+HELP = ('```'
             'bot COMMANDS\n'
             'note: all commands must be preceeded by "gay ". ex: "gay help"\n'
             'note: all instances of <user> can be pings with @ or name shorthands. ex: "gay mock @GayZach" is the same as "gay mock j-zach"\n'
@@ -42,33 +41,12 @@ commands = ('```'
 
 
 
-def load_file(filename: str) -> dict:
-    with open(filename, 'r') as file:
-        contents = json.load(file)
-    return contents
-
-
-
-def get_logger():
-    '''
-    initializes logger
-    '''
-    logger = logging.getLogger('gaybot')
-    logger.setLevel(logging.INFO)
-    file_handler = logging.FileHandler(filename='gaybot.log', encoding='utf-8', mode='a')
-    file_handler.setFormatter(logging.Formatter('%(asctime)s:   %(message)s'))
-    console_handler = logging.StreamHandler(stdout)
-    console_handler.setFormatter(logging.Formatter('%(asctime)s:   %(message)s'))
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
-    return logger
-
-
-
 def get_max_word_count() -> int:
     '''
-    returns the longest word count of all soundboard files
+    Returns the longest word count of all soundboard files
+
+    Returns:
+        int
     '''
     max_word_count = 0
     for file_name in listdir('soundboard/'):
@@ -80,6 +58,12 @@ def get_max_word_count() -> int:
 
 
 def get_clip(search: str) -> str:
+    '''
+    Using fuzzywuzzy, searches all the soundboard clips for the closest matching ones
+
+    Returns:
+        str: the filename, NOT path/dir
+    '''
     selected_clip = ''
     best_confidence = 0
 
@@ -90,13 +74,16 @@ def get_clip(search: str) -> str:
             best_confidence = confidence
             selected_clip = clip
 
-    return f'soundboard/{selected_clip}'
+    return selected_clip
 
 
 
 def mock_msg(original: str) -> str:
     '''
-    randomizes the capitalization of every character in a string
+    Randomizes the capitalization of every character in a string
+
+    Returns:
+        str
     '''
     mocked = ''
     for char in original:
