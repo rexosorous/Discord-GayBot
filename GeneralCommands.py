@@ -51,5 +51,5 @@ class GeneralCommands(commands.Cog):
         yes this technically doxxes me, but whatever.
         '''
         if ctx.author.id == 158371798327492608:
-            # await self.bot.get_command('stop')(ctx)
+            await self.bot.get_command('stop')(ctx)
             await self.bot.close()

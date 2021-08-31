@@ -4,14 +4,13 @@ from discord.ext import commands
 
 # local modules
 from GeneralCommands import GeneralCommands
+from VoiceCommands import VoiceCommands
 
 '''
 DEPENDENCIES:
-    discord.py
-    PyNaCl
-    ffmpeg be installed to PATH
+    discord.py[voice]
+    ffmpeg.exe to be placed in ./ffmpeg/
     fuzzywuzzy
-    difflib
     python-levenshtein
 '''
 
@@ -23,6 +22,7 @@ if __name__ == '__main__':
         print(f'logged in as {bot.user.name}')
 
     bot.add_cog(GeneralCommands(bot))
+    bot.add_cog(VoiceCommands(bot))
 
     with open('login.token', 'r') as file:
         token = file.read()
