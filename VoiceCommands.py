@@ -20,6 +20,20 @@ class VoiceCommands(commands.Cog):
 
     Attributes:
         FFMPEG_OPTIONS (dict): options sent to ffmpeg
+        instances (dict): following this format
+            {
+                discord.Guild.id (int): {
+                    'voice': discord.AudioSource,
+                    'queue': [{
+                            'ffmpeg': discord.AudioSource,
+                            'title': str,
+                            'duration': int,        # seconds
+                            'thumbnail_url': str,
+                            'audio_url': str,       # raw audio url
+                            'video_url': str]       # youtube webpage
+                        }]  # if it's a soudnboard clip, it will only have ffmpeg and title fields
+                }
+            }
         voice (discord.VoiceClient): is set to None on first init
         queue (list[dict]): has the data for each clip to be played. the dicts have the form:
             {
@@ -36,19 +50,36 @@ class VoiceCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.FFMPEG_OPTIONS = {'executable': 'ffmpeg/ffmpeg.exe'}  # so the end user doesn't have to have ffmpeg installed to PATH
-        self.voice = None
-        self.queue = list()
- 
+        self.instances = dict()
+
+
+
+    async def init_guilds(self):
+        '''
+        Inits self.instances with all the guilds that the bot is a part of.
+        This is done here instead of in self.__init__() because an instance of this class is created before the bot connects to discord and has knowledge of which guilds it is a part of.
+        So this is called after the bot is ready and has this knowledge (see GayBot.py's on_ready())
+
+        Note:
+            This is only fetched once at the beginning of the bot's life. If the bot joins other servers during runtime, a KeyError will be thrown whenever
+            someone tries to ues voice functionalities.
+        '''
+        for guild in self.bot.guilds:
+            self.instances[guild.id] = {
+                'voice': None,
+                'queue': list()
+            }
+
 
 
 ####################################################################################################################################
 # GENERIC FUNCTIONS
 ####################################################################################################################################
 
-    async def bot_is_connected(self):
-        if not self.voice:
+    async def bot_is_connected(self, ctx):
+        if not self.instances[ctx.guild.id]['voice']:
             return False
-        return self.voice.is_connected()
+        return self.instances[ctx.guild.id]['voice'].is_connected()
 
     async def user_in_channel(self, ctx):
         if ctx.message.author.voice:
@@ -57,7 +88,7 @@ class VoiceCommands(commands.Cog):
         return False
 
     async def user_in_same_channel(self, ctx):
-        if ctx.message.author.voice.channel == self.voice.channel:
+        if ctx.message.author.voice.channel == self.instances[ctx.guild.id]['voice'].channel:
             return True
         await ctx.send(':no_entry_sign: You must be in the same voice channel as me to use that command.')
         return False
@@ -72,8 +103,8 @@ class VoiceCommands(commands.Cog):
         Note:
             NOT A COMMAND
         '''
-        if self.queue:
-            clip_data = self.queue.pop(0)
+        if self.instances[ctx.guild.id]['queue']:
+            clip_data = self.instances[ctx.guild.id]['queue'].pop(0)
             
             # pretty output using embed
             pretty_data = discord.Embed()
@@ -89,22 +120,22 @@ class VoiceCommands(commands.Cog):
                 # if this is a soundboard clip
                 pretty_data.description = 'Length: This is a soundboard clip and I\'m too lazy to code in the length. It should be over soon anyways.'
 
-            if self.queue:
-                next_clip = self.queue[0]
+            if self.instances[ctx.guild.id]['queue']:
+                next_clip = self.instances[ctx.guild.id]['queue'][0]
                 val = f'[{next_clip["title"]}]({next_clip["video_url"]})' if 'audio_url' in next_clip else next_clip['title']
                 pretty_data.add_field(name='Up Next', value=val)
             else:
                 pretty_data.add_field(name='Up Next', value='This is the last video in the queue')
             await ctx.send(embed=pretty_data)
 
-            self.voice.play(clip_data['ffmpeg'])
+            self.instances[ctx.guild.id]['voice'].play(clip_data['ffmpeg'])
             # waits 3 seconds between clips so it doesn't just play back to back
-            while self.voice.is_playing(): # this while loop is needed like this because discord.VoiceClient.play is not asynchronous for some reason
+            while self.instances[ctx.guild.id]['voice'].is_playing(): # this while loop is needed like this because discord.VoiceClient.play is not asynchronous for some reason
                 await asyncio.sleep(0.5)
             await asyncio.sleep(3)
             await self.play_next(ctx)
         else:
-            await self.stop()
+            await self.stop(ctx)
 
 
 
@@ -122,7 +153,7 @@ class VoiceCommands(commands.Cog):
         5. Starts playing clips if the bot isn't already doing so
 
         Args:
-            clip_data (dict): see self.queue for dict format
+            clip_data (dict): see self.instances for dict format
 
         Note:
             NOT A COMMAND
@@ -130,10 +161,10 @@ class VoiceCommands(commands.Cog):
         if not await self.user_in_channel(ctx):
             return
 
-        if await self.bot_is_connected():
+        if await self.bot_is_connected(ctx):
             if await self.user_in_same_channel(ctx):
                 # if the bot is already playing audio and the user invoking the command is in the same voice channel
-                self.queue.append(clip_data)
+                self.instances[ctx.guild.id]['queue'].append(clip_data)
                 await ctx.message.add_reaction('☑️')
 
                 # pretty output using embed
@@ -141,7 +172,7 @@ class VoiceCommands(commands.Cog):
                 pretty_data.title = clip_data['title']
                 pretty_data.color = discord.Color.green()
                 pretty_data.set_author(name='Added to Queue', icon_url='https://i.imgur.com/zRn90U1.png')
-                pretty_data.set_footer(text=f'To undo, use "gay queue remove last" or "gay queue remove {len(self.queue)-1}"')
+                pretty_data.set_footer(text=f'To undo, use "gay queue remove last" or "gay queue remove {len(self.instances[ctx.guild.id]["queue"])-1}"')
                 if 'audio_url' in clip_data:
                     # if this is a youtube video
                     pretty_data.url = clip_data['video_url']
@@ -153,9 +184,9 @@ class VoiceCommands(commands.Cog):
                 await ctx.send(embed=pretty_data)
         else:
             # if the bot isn't playing audio and the user invoking the command is in any voice channel
-            self.queue.append(clip_data)
+            self.instances[ctx.guild.id]['queue'].append(clip_data)
             await ctx.message.add_reaction('☑️')
-            self.voice = await ctx.message.author.voice.channel.connect()
+            self.instances[ctx.guild.id]['voice'] = await ctx.message.author.voice.channel.connect()
             await self.play_next(ctx)
 
 
@@ -165,9 +196,9 @@ class VoiceCommands(commands.Cog):
         '''
         Skips the currently playing audio clip if there is one
         '''
-        if not await self.user_in_channel(ctx) or not await self.bot_is_connected() or not await self.user_in_same_channel(ctx):
+        if not await self.user_in_channel(ctx) or not await self.bot_is_connected(ctx) or not await self.user_in_same_channel(ctx):
             return
-        self.voice.stop()
+        self.instances[ctx.guild.id]['voice'].stop()
         await ctx.message.add_reaction('☑️')
 
 
@@ -195,9 +226,9 @@ class VoiceCommands(commands.Cog):
         pretty_data = discord.Embed()
         pretty_data.color = discord.Color.green()
         pretty_data.set_author(name='Queue', icon_url='https://i.imgur.com/1P4LiHx.png')
-        for clip_data in self.queue:
+        for clip_data in self.instances[ctx.guild.id]['queue']:
             title = f'[{clip_data["title"]}]({clip_data["video_url"]})' if 'audio_url' in clip_data else clip_data["title"]
-            line = f'`#{self.queue.index(clip_data)}:` {title}'
+            line = f'`#{self.instances[ctx.guild.id]["queue"].index(clip_data)}:` {title}'
             queue_list.append(line)
         if queue_list:
             pretty_data.description = '\n'.join(queue_list)
@@ -217,9 +248,9 @@ class VoiceCommands(commands.Cog):
         Note:
             Is part of a group so is invoked similarly to 'queue clear'
         '''
-        if not await self.user_in_channel(ctx) or not await self.bot_is_connected() or not await self.user_in_same_channel(ctx):
+        if not await self.user_in_channel(ctx) or not await self.bot_is_connected(ctx) or not await self.user_in_same_channel(ctx):
             return
-        self.queue = list()
+        self.instances[ctx.guild.id]['queue'] = list()
         await ctx.message.add_reaction('☑️')
 
 
@@ -236,7 +267,7 @@ class VoiceCommands(commands.Cog):
         Note:
             Is part of a group so is invoked similarly to 'queue remove'
         '''
-        if not await self.user_in_channel(ctx) or not await self.bot_is_connected() or not await self.user_in_same_channel(ctx):
+        if not await self.user_in_channel(ctx) or not await self.bot_is_connected(ctx) or not await self.user_in_same_channel(ctx):
             return
         if index.lower() in ['first', 'next']:
             index = 0
@@ -244,7 +275,7 @@ class VoiceCommands(commands.Cog):
             index = -1
         try:
             index = int(index)
-            self.queue.pop(index)
+            self.instances[ctx.guild.id]['queue'].pop(index)
             await ctx.message.add_reaction('☑️')
         except ValueError:
             await ctx.send(':no_entry_sign: only integers allowed')
@@ -254,19 +285,29 @@ class VoiceCommands(commands.Cog):
 
 
     @commands.command(aliases=['leave', 'kick', 'fuckoff'])
-    async def stop(self, ctx = None):
+    async def stop(self, ctx):
         '''
         Stops playing audio and disconnects from the voice channel
         '''
-        if ctx and (not await self.user_in_channel(ctx) or not await self.bot_is_connected() or not await self.user_in_same_channel(ctx)):
+        if not await self.user_in_channel(ctx) or not await self.bot_is_connected(ctx) or not await self.user_in_same_channel(ctx):
             return
-        if not self.voice:
-            return
-        self.voice.stop()
-        self.queue = list()
-        await self.voice.disconnect()
-        if ctx:
-            await ctx.message.add_reaction('☑️')
+        self.instances[ctx.guild.id]['voice'].stop()
+        self.instances[ctx.guild.id]['queue'] = list()
+        await self.instances[ctx.guild.id]['voice'].disconnect()
+
+
+
+    async def kill(self):
+        '''
+        Gracefully stops the voice bot and disconnects from all servers.
+
+        Note:
+            NOT A COMMAND
+        '''
+        for guild in self.instances:
+            if voice := self.instances[guild]['voice']:
+                voice.stop()
+                await voice.disconnect()
 
 
 

@@ -69,15 +69,15 @@ class GeneralCommands(commands.Cog):
 
 
 
-    @commands.command()
+    @commands.command(aliases=['die', 'murder', 'strangle'])
     async def kill(self, ctx):
         '''
-        Stops the bot
+        Gracefully stops the bot
 
         Note:
             Can only be used by me.
             Yes this technically doxxes me, but whatever.
         '''
         if ctx.author.id == 158371798327492608:
-            await self.bot.get_command('stop')(ctx)
+            await self.bot.get_cog('VoiceCommands').kill()
             await self.bot.close()
