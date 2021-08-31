@@ -1,5 +1,9 @@
 # dependencies
+import discord
 from discord.ext import commands
+
+# local modules
+import utilities as util
 
 
 
@@ -42,6 +46,26 @@ class GeneralCommands(commands.Cog):
             await ctx.send(msg)
         else:
             await ctx.send('could not find any of those emojis')
+
+
+
+    @commands.command()
+    async def mock(self, ctx, user):
+        '''
+        Mocks a user by randomizing the capitilzation in that user's last message
+        '''
+        user = ctx.message.mentions[0]
+
+        # pretty output using embed
+        pretty_data = discord.Embed()
+        pretty_data.color = discord.Color.green()
+        pretty_data.set_author(name=user.display_name, icon_url=user.avatar_url)
+        pretty_data.set_image(url='https://i.imgur.com/xQu6gKd.jpg')
+        async for message in ctx.channel.history(limit=50):
+            if message.author == user:
+                pretty_data.title = util.mock_msg(message.content)
+                break
+        await ctx.send(embed=pretty_data)
 
 
 

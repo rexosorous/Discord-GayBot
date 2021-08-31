@@ -258,7 +258,7 @@ class VoiceCommands(commands.Cog):
         '''
         Stops playing audio and disconnects from the voice channel
         '''
-        if not await self.user_in_channel(ctx) or not await self.bot_is_connected() or not await self.user_in_same_channel(ctx):
+        if ctx and (not await self.user_in_channel(ctx) or not await self.bot_is_connected() or not await self.user_in_same_channel(ctx)):
             return
         if not self.voice:
             return
