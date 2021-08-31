@@ -135,7 +135,7 @@ class VoiceCommands(commands.Cog):
             await asyncio.sleep(3)
             await self.play_next(ctx)
         else:
-            await self.stop(ctx)
+            await self.instances[ctx.guild.id]['voice'].disconnect()
 
 
 
@@ -237,6 +237,7 @@ class VoiceCommands(commands.Cog):
             pretty_data.description = 'There are no items in the queue.'
             pretty_data.set_footer(text='To add something to the queue, use "gay play <video>" or "gay soundboard <clip>"')
         await ctx.send(embed=pretty_data)
+        await ctx.message.add_reaction('☑️')
 
 
 
@@ -294,6 +295,7 @@ class VoiceCommands(commands.Cog):
         self.instances[ctx.guild.id]['voice'].stop()
         self.instances[ctx.guild.id]['queue'] = list()
         await self.instances[ctx.guild.id]['voice'].disconnect()
+        await ctx.message.add_reaction('☑️')
 
 
 
