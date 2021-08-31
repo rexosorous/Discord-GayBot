@@ -45,7 +45,26 @@ class VoiceCommands(commands.Cog):
 # GENERIC FUNCTIONS
 ####################################################################################################################################
 
-    async def play_next(self):
+    async def bot_is_connected(self):
+        if not self.voice:
+            return False
+        return self.voice.is_connected()
+
+    async def user_in_channel(self, ctx):
+        if ctx.message.author.voice:
+            return True
+        await ctx.send(':no_entry_sign: You must be in a voice channel to use that command.')
+        return False
+
+    async def user_in_same_channel(self, ctx):
+        if ctx.message.author.voice.channel == self.voice.channel:
+            return True
+        await ctx.send(':no_entry_sign: You must be in the same voice channel as me to use that command.')
+        return False
+
+
+
+    async def play_next(self, ctx):
         '''
         A recursive function that plays all the audio clips in the queue
         If there are no more audio clips in the queue, it disconnects
@@ -55,12 +74,35 @@ class VoiceCommands(commands.Cog):
         '''
         if self.queue:
             clip_data = self.queue.pop(0)
+            
+            # pretty output using embed
+            pretty_data = discord.Embed()
+            pretty_data.title = clip_data['title']
+            pretty_data.color = discord.Color.green()
+            pretty_data.set_author(name='Now Playing', icon_url='https://i.imgur.com/8zZGsGQ.png')
+            if 'audio_url' in clip_data:
+                # if this is a youtube video
+                pretty_data.url = clip_data['video_url']
+                pretty_data.description = f'Length: {int(clip_data["duration"]/60)}m {int(clip_data["duration"]%60)}s'
+                pretty_data.set_thumbnail(url=clip_data['thumbnail_url'])
+            else:
+                # if this is a soundboard clip
+                pretty_data.description = 'Length: This is a soundboard clip and I\'m too lazy to code in the length. It should be over soon anyways.'
+
+            if self.queue:
+                next_clip = self.queue[0]
+                val = f'[{next_clip["title"]}]({next_clip["video_url"]})' if 'audio_url' in next_clip else next_clip['title']
+                pretty_data.add_field(name='Up Next', value=val)
+            else:
+                pretty_data.add_field(name='Up Next', value='This is the last video in the queue')
+            await ctx.send(embed=pretty_data)
+
             self.voice.play(clip_data['ffmpeg'])
             # waits 3 seconds between clips so it doesn't just play back to back
             while self.voice.is_playing(): # this while loop is needed like this because discord.VoiceClient.play is not asynchronous for some reason
                 await asyncio.sleep(0.5)
             await asyncio.sleep(3)
-            await self.play_next()
+            await self.play_next(ctx)
         else:
             await self.stop()
 
@@ -76,7 +118,8 @@ class VoiceCommands(commands.Cog):
             the invoker is in the same voice channel)
         2. Joins a voice channel if the bot isn't already in one
         3. Adds a clip to the queue
-        4. Starts playing clips if the bot isn't already doing so
+        4. Displays confirmation message to chat if adding to queue (ie. not the first video to be played)
+        5. Starts playing clips if the bot isn't already doing so
 
         Args:
             clip_data (dict): see self.queue for dict format
@@ -84,18 +127,36 @@ class VoiceCommands(commands.Cog):
         Note:
             NOT A COMMAND
         '''
-        if ctx.message.author.voice:
-            channel = ctx.message.author.voice.channel
-            if not self.voice or not self.voice.is_connected(): # connect and start playing if the bot isn't already doing so
+        if not await self.user_in_channel(ctx):
+            return
+
+        if await self.bot_is_connected():
+            if await self.user_in_same_channel(ctx):
+                # if the bot is already playing audio and the user invoking the command is in the same voice channel
                 self.queue.append(clip_data)
-                self.voice = await channel.connect()
-                await self.play_next()
-            elif channel == self.voice.channel: # if the bot is already playing music and the person invoking the command is in the same channel, add the audio clip to the queue
-                self.queue.append(clip_data)
-            else:
-                await ctx.send('please join the same channel as me')
+                await ctx.message.add_reaction('☑️')
+
+                # pretty output using embed
+                pretty_data = discord.Embed()
+                pretty_data.title = clip_data['title']
+                pretty_data.color = discord.Color.green()
+                pretty_data.set_author(name='Added to Queue', icon_url='https://i.imgur.com/zRn90U1.png')
+                pretty_data.set_footer(text=f'To undo, use "gay queue remove last" or "gay queue remove {len(self.queue)-1}"')
+                if 'audio_url' in clip_data:
+                    # if this is a youtube video
+                    pretty_data.url = clip_data['video_url']
+                    pretty_data.description = f'Length: {int(clip_data["duration"]/60)}m {int(clip_data["duration"]%60)}s'
+                    pretty_data.set_thumbnail(url=clip_data['thumbnail_url'])
+                else:
+                    # if this is a soundboard clip
+                    pretty_data.description = 'Length: This is a soundboard clip and I\'m too lazy to code in the length. It should be over soon anyways.'
+                await ctx.send(embed=pretty_data)
         else:
-            await ctx.send('please join a voice channel first')
+            # if the bot isn't playing audio and the user invoking the command is in any voice channel
+            self.queue.append(clip_data)
+            await ctx.message.add_reaction('☑️')
+            self.voice = await ctx.message.author.voice.channel.connect()
+            await self.play_next(ctx)
 
 
 
@@ -104,7 +165,10 @@ class VoiceCommands(commands.Cog):
         '''
         Skips the currently playing audio clip if there is one
         '''
+        if not await self.user_in_channel(ctx) or not await self.bot_is_connected() or not await self.user_in_same_channel(ctx):
+            return
         self.voice.stop()
+        await ctx.message.add_reaction('☑️')
 
 
 
@@ -126,13 +190,22 @@ class VoiceCommands(commands.Cog):
         Note:
             Is part of a group so is invoked similarly to 'queue check'
         '''
-        msg = ''
-        for index in range(len(self.queue)):
-            msg += f'{index}: {self.queue[index]["title"]}\n'
-        if msg:
-            await ctx.send(msg)
+        # pretty output using embed
+        queue_list = list()
+        pretty_data = discord.Embed()
+        pretty_data.color = discord.Color.green()
+        pretty_data.set_author(name='Queue', icon_url='https://i.imgur.com/1P4LiHx.png')
+        for clip_data in self.queue:
+            title = f'[{clip_data["title"]}]({clip_data["video_url"]})' if 'audio_url' in clip_data else clip_data["title"]
+            line = f'`#{self.queue.index(clip_data)}:` {title}'
+            queue_list.append(line)
+        if queue_list:
+            pretty_data.description = '\n'.join(queue_list)
+            pretty_data.set_footer(text=f'To remove something, use "gay queue remove <index>"')
         else:
-            await ctx.send('there are no items in the queue')
+            pretty_data.description = 'There are no items in the queue.'
+            pretty_data.set_footer(text='To add something to the queue, use "gay play <video>" or "gay soundboard <clip>"')
+        await ctx.send(embed=pretty_data)
 
 
 
@@ -144,19 +217,27 @@ class VoiceCommands(commands.Cog):
         Note:
             Is part of a group so is invoked similarly to 'queue clear'
         '''
+        if not await self.user_in_channel(ctx) or not await self.bot_is_connected() or not await self.user_in_same_channel(ctx):
+            return
         self.queue = list()
+        await ctx.message.add_reaction('☑️')
 
 
 
-    @commands.command(name='remove')
+    @queue.command(name='remove', aliases=['rm', 'delete', 'del'])
     async def remove_from_queue(self, ctx, index):
         '''
         Removes one item from the clip queue based on index
 
         Args:
             index (int or str): the index of the clip to be removed
-                can also be 'first', 'next', 'last', or 'end
+                can also be 'first', 'next', 'last', or 'end'
+
+        Note:
+            Is part of a group so is invoked similarly to 'queue remove'
         '''
+        if not await self.user_in_channel(ctx) or not await self.bot_is_connected() or not await self.user_in_same_channel(ctx):
+            return
         if index.lower() in ['first', 'next']:
             index = 0
         elif index.lower() in ['last', 'end']:
@@ -164,10 +245,11 @@ class VoiceCommands(commands.Cog):
         try:
             index = int(index)
             self.queue.pop(index)
+            await ctx.message.add_reaction('☑️')
         except ValueError:
-            await ctx.send('only integers allowed')
+            await ctx.send(':no_entry_sign: only integers allowed')
         except IndexError:
-            await ctx.send('that number does not represent an item in the queue')
+            await ctx.send(':no_entry_sign: that number does not represent an item in the queue')
 
 
 
@@ -176,11 +258,15 @@ class VoiceCommands(commands.Cog):
         '''
         Stops playing audio and disconnects from the voice channel
         '''
+        if not await self.user_in_channel(ctx) or not await self.bot_is_connected() or not await self.user_in_same_channel(ctx):
+            return
         if not self.voice:
             return
         self.voice.stop()
         self.queue = list()
         await self.voice.disconnect()
+        if ctx:
+            await ctx.message.add_reaction('☑️')
 
 
 
@@ -195,13 +281,13 @@ class VoiceCommands(commands.Cog):
 
         Args:
             search_term (tuple[str])
-        '''     
+        '''
         search_term = ' '.join(search_term)
         filename = util.get_clip(search_term)
         audio_clip = discord.FFmpegPCMAudio(f'soundboard/{filename}', **self.FFMPEG_OPTIONS)
         data = {
             'ffmpeg': audio_clip,
-            'title': filename[:-4]
+            'title': f'{filename[:-4]} (soundboard)'
         }
         await self.join_and_play(ctx, data)
 
@@ -214,13 +300,13 @@ class VoiceCommands(commands.Cog):
 
         Note:
             Is part of a group so is invoked similarly to 'gay soundboard random'
-        ''' 
+        '''
         all_clips = listdir('soundboard/')
         filename = random.choice(all_clips)
         audio_clip = discord.FFmpegPCMAudio(f'soundboard/{filename}', **self.FFMPEG_OPTIONS)
         data = {
             'ffmpeg': audio_clip,
-            'title': filename[:-4]
+            'title': f'{filename[:-4]} (soundboard)'
         }
         await self.join_and_play(ctx, data)
         
@@ -234,14 +320,14 @@ class VoiceCommands(commands.Cog):
         Note:
             Is part of a group so is invoked similarly to 'gay soundboard list'
         '''
-        clip_names = []
-        for clip in listdir('soundboard/'):
-            clip_names.append(f'{clip[:-4]}')
-        clip_names.sort()
-        clip_names.insert(0, 'All Playable Soundboard Clips:```')
-        clip_names.append('```')
-        msg = '\n'.join(clip_names)
-        await ctx.send(msg)
+        # pretty output using embed
+        pretty_data = discord.Embed()
+        pretty_data.color = discord.Color.green()
+        pretty_data.set_author(name=':information_source: Soundboard Clips', icon_url='https://i.imgur.com/1P4LiHx.png')
+        clip_list = listdir('soundboard/')
+        pretty_data.description = '\n'.join(clip_list)
+        pretty_data.set_footer(text=f'To play a soundboard clip, use "gay soundboard <clip>"')
+        await ctx.send(embed=pretty_data)
 
         
 

@@ -1,43 +1,9 @@
 # standard libraries
 from random import randint
-from sys import stdout
 from os import listdir
-import logging
 
 # dependencies
 from fuzzywuzzy import fuzz
-
-
-
-HELP = ('```'
-            'bot COMMANDS\n'
-            'note: all commands must be preceeded by "gay ". ex: "gay help"\n'
-            'note: all instances of <user> can be pings with @ or name shorthands. ex: "gay mock @GayZach" is the same as "gay mock j-zach"\n'
-            'github link: https://github.com/rexosorous/discord-bot\n\n'
-            'help\n'
-            'checknicknames\n'
-            'mock <user>\n'
-            'yikes <user>\n'
-            'checkyikes <user>\n'
-            'bruh\n'
-            'emoji <emoji name>                 <emoji name> should not be surrounded by colons\n'
-            'quote <user> <lines>               <lines> is optional and should be the number of lines to quote\n'
-            'soundboard <clip name>             <clip name> should be optained from gay checksoundboard\n'
-            'cliproulette\n'
-            'checksoundboard\n'
-            'soundboardstats <field> <order>    <field> should be the field to sort by. fields: "name", "soundboard", "roulette", or "normal"\n'
-            '                                   <order> "asc" or "desc"\n'
-            'phasmophobia <audio sequence>      <audio sequence> should be "footsteps", "door", "moan", or "heartbeat"'
-            'remind <time> <msg> (<users>)      <time> must follow this format: YYYY/MM/DD hh:mm to set an absolute date\n'
-            '                                   <time> must follow this format: hh:mm to set a relative time. ex: 2:30 would be 2.5 hours from now\n'
-            '                                   <msg> is the message you want the bot to say when it reminds you and is optional\n'
-            '                                   <users> who you want the bot to ping and MUST be surrounded by () and is optional\n'
-            'checkreminders\n'
-            'removereminder <id>                <id> should be obtained from checkreminders'
-            'stop\n'
-            'leave\n'
-            'scan\n'
-            '```')
 
 
 
