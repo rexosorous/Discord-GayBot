@@ -12,6 +12,15 @@ DEPENDENCIES:
     python-levenshtein
 '''
 
+'''
+Permisison Needed:
+    Send Messages
+    Embed Links
+    Add Reactions
+    Manage Messages
+    Read Message History
+'''
+
 
 
 if __name__ == '__main__':

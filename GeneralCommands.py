@@ -36,27 +36,26 @@ class GeneralCommands(commands.Cog):
 
 
     @commands.command()
-    async def emoji(self, ctx, *emoji_names):
+    async def emoji(self, ctx, emoji_name):
         '''
         Allows users to use server nitro-gated emojis.
         Does not send error messages unless NONE of the emojis are found.
             So if 1 emoji is found but 5 aren't, then it's still 'legal' and won't throw error messages
 
         args:
-            emoji_names (tuple[str])
+            emoji_names (str)
         '''
-        emoji_names = [emoji.lower() for emoji in emoji_names]
-        emojis = []
+        emoji_name = emoji_name.lower()
         for server_emoji in await ctx.guild.fetch_emojis():
-            if server_emoji.name.lower() in emoji_names:
-                emojis.append(str(server_emoji))
-        msg = ' '.join(emojis)
-
-        if msg:
-            await ctx.send(msg)
-        else:
-            await ctx.send('could not find any of those emojis')
-        await ctx.message.add_reaction('☑️')
+            if server_emoji.name.lower() == emoji_name:
+                pretty_data = discord.Embed()
+                pretty_data.color = discord.Color.green()
+                pretty_data.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
+                pretty_data.set_image(url=server_emoji.url)
+                await ctx.send(embed=pretty_data)
+                await ctx.message.delete()
+                return
+        await ctx.send(':no_entry_sign: Could not find that emoji.')
 
 
 
