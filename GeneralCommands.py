@@ -2,7 +2,7 @@
 from random import randint
 
 # dependencies
-import discord
+from discord import Embed, Color
 from discord.ext import commands
 
 # local modules
@@ -50,8 +50,8 @@ class GeneralCommands(commands.Cog):
         '''
         emoji_name = emoji_name.lower()
         server_emojis = {emoji.name.lower(): emoji.url for emoji in ctx.guild.emojis}
-        pretty_data = discord.Embed()
-        pretty_data.color = discord.Color.green()
+        pretty_data = Embed()
+        pretty_data.color = Color.green()
         pretty_data.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
         pretty_data.set_image(url=server_emojis[emoji_name])
         await ctx.send(embed=pretty_data)
@@ -67,8 +67,8 @@ class GeneralCommands(commands.Cog):
         user = ctx.message.mentions[0]
 
         # pretty output using embed
-        pretty_data = discord.Embed()
-        pretty_data.color = discord.Color.green()
+        pretty_data = Embed()
+        pretty_data.color = Color.green()
         pretty_data.set_author(name=user.display_name, icon_url=user.avatar_url)
         pretty_data.set_image(url='https://i.imgur.com/xQu6gKd.jpg')
         async for message in ctx.channel.history(limit=50):

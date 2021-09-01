@@ -1,13 +1,13 @@
 # standard libraries
-import asyncio
-import random
+from asyncio import sleep
 from os import listdir
+from random import choice
  
 # dependencies
-import discord
+from discord import Embed, Color, FFmpegPCMAudio
 from discord.ext import commands
-from youtube_dl import YoutubeDL
 from fuzzywuzzy import fuzz
+from youtube_dl import YoutubeDL
 
 # local modules
 from Exceptions import *
@@ -105,9 +105,9 @@ class VoiceCommands(commands.Cog):
             clip_data = self.instances[ctx.guild.id]['queue'].pop(0)
             
             # pretty output using embed
-            pretty_data = discord.Embed()
+            pretty_data = Embed()
             pretty_data.title = clip_data['title']
-            pretty_data.color = discord.Color.green()
+            pretty_data.color = Color.green()
             pretty_data.set_author(name='Now Playing', icon_url='https://i.imgur.com/8zZGsGQ.png')
             if 'audio_url' in clip_data:
                 # if this is a youtube video
@@ -129,8 +129,8 @@ class VoiceCommands(commands.Cog):
             self.instances[ctx.guild.id]['voice'].play(clip_data['ffmpeg'])
             # waits 3 seconds between clips so it doesn't just play back to back
             while self.instances[ctx.guild.id]['voice'].is_playing(): # this while loop is needed like this because discord.VoiceClient.play is not asynchronous for some reason
-                await asyncio.sleep(0.5)
-            await asyncio.sleep(3)
+                await sleep(0.5)
+            await sleep(3)
             await self.play_next(ctx)
         else:
             await self.instances[ctx.guild.id]['voice'].disconnect()
@@ -163,9 +163,9 @@ class VoiceCommands(commands.Cog):
                 self.instances[ctx.guild.id]['queue'].append(clip_data)
 
                 # pretty output using embed
-                pretty_data = discord.Embed()
+                pretty_data = Embed()
                 pretty_data.title = clip_data['title']
-                pretty_data.color = discord.Color.green()
+                pretty_data.color = Color.green()
                 pretty_data.set_author(name='Added to Queue', icon_url='https://i.imgur.com/zRn90U1.png')
                 pretty_data.set_footer(text=f'To undo, use "gay queue remove last" or "gay queue remove {len(self.instances[ctx.guild.id]["queue"])-1}"')
                 if 'audio_url' in clip_data:
@@ -220,8 +220,8 @@ class VoiceCommands(commands.Cog):
         '''
         # pretty output using embed
         queue_list = list()
-        pretty_data = discord.Embed()
-        pretty_data.color = discord.Color.green()
+        pretty_data = Embed()
+        pretty_data.color = Color.green()
         pretty_data.set_author(name='Queue', icon_url='https://i.imgur.com/1P4LiHx.png')
         for clip_data in self.instances[ctx.guild.id]['queue']:
             title = f'[{clip_data["title"]}]({clip_data["video_url"]})' if 'audio_url' in clip_data else clip_data["title"]
@@ -335,7 +335,7 @@ class VoiceCommands(commands.Cog):
                 best_confidence = confidence
                 best_clip = clip
 
-        audio_clip = discord.FFmpegPCMAudio(f'soundboard/{best_clip}')
+        audio_clip = FFmpegPCMAudio(f'soundboard/{best_clip}')
         data = {
             'ffmpeg': audio_clip,
             'title': f'{best_clip[:-4]} (soundboard)'
@@ -354,8 +354,8 @@ class VoiceCommands(commands.Cog):
             Is part of a group so is invoked similarly to 'gay soundboard random'
         '''
         all_clips = listdir('soundboard/')
-        filename = random.choice(all_clips)
-        audio_clip = discord.FFmpegPCMAudio(f'soundboard/{filename}')
+        filename = choice(all_clips)
+        audio_clip = FFmpegPCMAudio(f'soundboard/{filename}')
         data = {
             'ffmpeg': audio_clip,
             'title': f'{filename[:-4]} (soundboard)'
@@ -373,8 +373,8 @@ class VoiceCommands(commands.Cog):
             Is part of a group so is invoked similarly to 'gay soundboard list'
         '''
         # pretty output using embed
-        pretty_data = discord.Embed()
-        pretty_data.color = discord.Color.green()
+        pretty_data = Embed()
+        pretty_data.color = Color.green()
         pretty_data.set_author(name=':information_source: Soundboard Clips', icon_url='https://i.imgur.com/1P4LiHx.png')
         clip_list = listdir('soundboard/')
         pretty_data.description = '\n'.join(clip_list)
@@ -405,7 +405,7 @@ class VoiceCommands(commands.Cog):
             info = ytdl.extract_info(f'ytsearch:{search_term}', download=False)['entries'][0]
         url = info['url']
         ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}    # this prevents the bot from prematurely disconnecting if it loses connection for a short period of time
-        audio_clip = discord.FFmpegPCMAudio(url, **ffmpeg_options)
+        audio_clip = FFmpegPCMAudio(url, **ffmpeg_options)
         audio_clip_volume = discord.PCMVolumeTransformer(audio_clip, volume=0.3)
         data = {
             'ffmpeg': audio_clip_volume,

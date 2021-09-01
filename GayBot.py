@@ -4,26 +4,6 @@ from discord.ext import commands
 
 
 
-'''
-DEPENDENCIES:
-    discord.py[voice]
-    ffmpeg.exe to be installed to PATH
-    fuzzywuzzy
-    python-levenshtein
-    youtube-dl
-'''
-
-'''
-Permisison Needed:
-    Send Messages
-    Embed Links
-    Add Reactions
-    Manage Messages
-    Read Message History
-'''
-
-
-
 if __name__ == '__main__':
     '''
     essentially a main.py file
