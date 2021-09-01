@@ -404,7 +404,7 @@ class VoiceCommands(commands.Cog):
         with YoutubeDL(yt_options) as ytdl:
             info = ytdl.extract_info(f'ytsearch:{search_term}', download=False)['entries'][0]
         url = info['url']
-        ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}    # this prevents the bot from prematurely disconnecting if it loses connection for a short period of time
+        ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -af loudnorm=I=-16:LRA=11:TP=-1.5'}    # this prevents the bot from prematurely disconnecting if it loses connection for a short period of time
         audio_clip = FFmpegPCMAudio(url, **ffmpeg_options)
         audio_clip_volume = PCMVolumeTransformer(audio_clip, volume=0.3)
         data = {
