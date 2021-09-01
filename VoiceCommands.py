@@ -4,7 +4,7 @@ from os import listdir
 from random import choice
  
 # dependencies
-from discord import Embed, Color, FFmpegPCMAudio
+from discord import Color, Embed, FFmpegPCMAudio, PCMVolumeTransformer
 from discord.ext import commands
 from fuzzywuzzy import fuzz
 from youtube_dl import YoutubeDL
@@ -406,7 +406,7 @@ class VoiceCommands(commands.Cog):
         url = info['url']
         ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}    # this prevents the bot from prematurely disconnecting if it loses connection for a short period of time
         audio_clip = FFmpegPCMAudio(url, **ffmpeg_options)
-        audio_clip_volume = discord.PCMVolumeTransformer(audio_clip, volume=0.3)
+        audio_clip_volume = PCMVolumeTransformer(audio_clip, volume=0.3)
         data = {
             'ffmpeg': audio_clip_volume,
             'title': info['title'],

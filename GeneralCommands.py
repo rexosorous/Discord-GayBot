@@ -2,7 +2,7 @@
 from random import randint
 
 # dependencies
-from discord import Embed, Color
+from discord import Color, Embed
 from discord.ext import commands
 
 # local modules
