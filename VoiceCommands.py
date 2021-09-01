@@ -7,9 +7,9 @@ from os import listdir
 import discord
 from discord.ext import commands
 from youtube_dl import YoutubeDL
+from fuzzywuzzy import fuzz
 
 # local modules
-import utilities as util
 from Exceptions import *
 
 
@@ -304,7 +304,8 @@ class VoiceCommands(commands.Cog):
             NOT A COMMAND
         '''
         for guild in self.instances:
-            if voice := self.instances[guild]['voice']:
+            voice = self.instances[guild]['voice']
+            if voice:
                 voice.stop()
                 await voice.disconnect()
 
@@ -324,11 +325,21 @@ class VoiceCommands(commands.Cog):
             search_term (tuple[str])
         '''
         search_term = ' '.join(search_term)
-        filename = util.get_clip(search_term)
-        audio_clip = discord.FFmpegPCMAudio(f'soundboard/{filename}', **self.FFMPEG_OPTIONS)
+
+        # using fuzzywuzzy, choose the soundboard clip that best matches the search terms
+        best_clip = ''
+        best_confidence = 0
+        for clip in listdir('soundboard/'):
+            fixed_clip = clip[:-4]
+            confidence = fuzz.token_set_ratio(search_term, fixed_clip)
+            if confidence > best_confidence:
+                best_confidence = confidence
+                best_clip = clip
+
+        audio_clip = discord.FFmpegPCMAudio(f'soundboard/{best_clip}', **self.FFMPEG_OPTIONS)
         data = {
             'ffmpeg': audio_clip,
-            'title': f'{filename[:-4]} (soundboard)'
+            'title': f'{best_clip[:-4]} (soundboard)'
         }
         await self.join_and_play(ctx, data)
 

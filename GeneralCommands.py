@@ -1,9 +1,11 @@
+# standard libraries
+from random import randint
+
 # dependencies
 import discord
 from discord.ext import commands
 
 # local modules
-import utilities as util
 from Exceptions import *
 
 
@@ -71,7 +73,13 @@ class GeneralCommands(commands.Cog):
         pretty_data.set_image(url='https://i.imgur.com/xQu6gKd.jpg')
         async for message in ctx.channel.history(limit=50):
             if message.author == user:
-                pretty_data.title = util.mock_msg(message.content)
+                mocked = ''
+                for char in message.content:
+                    if randint(0, 1) == 1:
+                        mocked += char.upper()
+                    else:
+                        mocked += char.lower()
+                pretty_data.title = mocked
                 break
         await ctx.send(embed=pretty_data)
 
@@ -85,13 +93,13 @@ class GeneralCommands(commands.Cog):
 
         Note:
             Can only be used by me.
-            Yes this technically doxxes me, but whatever.
         '''
         instances = self.bot.get_cog('VoiceCommands').get_instances()
         self.bot.reload_extension('GeneralCommands')
         self.bot.reload_extension('VoiceCommands')
         self.bot.reload_extension('EventHandler')
         self.bot.get_cog('VoiceCommands').load_instances(instances)
+
 
 
     @commands.is_owner()
@@ -101,8 +109,7 @@ class GeneralCommands(commands.Cog):
         Gracefully stops the bot
 
         Note:
-            Can only be used by me.
-            Yes this technically doxxes me, but whatever.
+            Can only be used by me.\
         '''
         await self.bot.get_cog('VoiceCommands').kill()
         await self.bot.close()
