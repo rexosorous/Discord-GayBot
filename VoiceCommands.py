@@ -93,12 +93,14 @@ class VoiceCommands(commands.Cog):
     async def user_in_channel(self, ctx):
         if ctx.message.author.voice:
             return True
+        await ctx.message.add_reaction('❌')
         await ctx.send(':no_entry_sign: You must be in a voice channel to use that command.')
         return False
 
     async def user_in_same_channel(self, ctx):
         if ctx.message.author.voice.channel == self.instances[ctx.guild.id]['voice'].channel:
             return True
+        await ctx.message.add_reaction('❌')
         await ctx.send(':no_entry_sign: You must be in the same voice channel as me to use that command.')
         return False
 
@@ -288,9 +290,11 @@ class VoiceCommands(commands.Cog):
             self.instances[ctx.guild.id]['queue'].pop(index)
             await ctx.message.add_reaction('☑️')
         except ValueError:
-            await ctx.send(':no_entry_sign: only integers allowed')
+            await ctx.message.add_reaction('❌')
+            await ctx.send(':no_entry_sign: Only integers allowed.')
         except IndexError:
-            await ctx.send(':no_entry_sign: that number does not represent an item in the queue')
+            await ctx.message.add_reaction('❌')
+            await ctx.send(':no_entry_sign: That number does not represent an item in the queue.')
 
 
 
