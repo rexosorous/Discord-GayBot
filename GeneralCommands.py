@@ -35,6 +35,7 @@ class GeneralCommands(commands.Cog):
 
 
 
+    @emoji_exists()
     @commands.command()
     async def emoji(self, ctx, emoji_name):
         '''
@@ -46,16 +47,13 @@ class GeneralCommands(commands.Cog):
             emoji_names (str)
         '''
         emoji_name = emoji_name.lower()
-        for server_emoji in await ctx.guild.fetch_emojis():
-            if server_emoji.name.lower() == emoji_name:
-                pretty_data = discord.Embed()
-                pretty_data.color = discord.Color.green()
-                pretty_data.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
-                pretty_data.set_image(url=server_emoji.url)
-                await ctx.send(embed=pretty_data)
-                await ctx.message.delete()
-                return
-        raise EmojiNotFound
+        server_emojis = {emoji.name.lower(): emoji.url for emoji in ctx.guild.emojis}
+        pretty_data = discord.Embed()
+        pretty_data.color = discord.Color.green()
+        pretty_data.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
+        pretty_data.set_image(url=server_emojis[emoji_name])
+        await ctx.send(embed=pretty_data)
+        await ctx.message.delete()
 
 
 
@@ -79,6 +77,7 @@ class GeneralCommands(commands.Cog):
 
 
 
+    @commands.is_owner()
     @commands.command()
     async def reload(self, ctx):
         '''
@@ -88,15 +87,14 @@ class GeneralCommands(commands.Cog):
             Can only be used by me.
             Yes this technically doxxes me, but whatever.
         '''
-        if ctx.author.id == 158371798327492608:
-            instances = await self.bot.get_cog('VoiceCommands').get_instances()
-            self.bot.reload_extension('GeneralCommands')
-            self.bot.reload_extension('VoiceCommands')
-            self.bot.reload_extension('EventHandler')
-            await self.bot.get_cog('VoiceCommands').load_instances(instances)
+        instances = self.bot.get_cog('VoiceCommands').get_instances()
+        self.bot.reload_extension('GeneralCommands')
+        self.bot.reload_extension('VoiceCommands')
+        self.bot.reload_extension('EventHandler')
+        self.bot.get_cog('VoiceCommands').load_instances(instances)
 
 
-
+    @commands.is_owner()
     @commands.command(aliases=['die', 'murder', 'strangle'])
     async def kill(self, ctx):
         '''
@@ -106,6 +104,5 @@ class GeneralCommands(commands.Cog):
             Can only be used by me.
             Yes this technically doxxes me, but whatever.
         '''
-        if ctx.author.id == 158371798327492608:
-            await self.bot.get_cog('VoiceCommands').kill()
-            await self.bot.close()
+        await self.bot.get_cog('VoiceCommands').kill()
+        await self.bot.close()
