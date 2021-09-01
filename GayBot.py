@@ -7,9 +7,10 @@ from discord.ext import commands
 '''
 DEPENDENCIES:
     discord.py[voice]
-    ffmpeg.exe to be placed in ./ffmpeg/
+    ffmpeg.exe to be installed to PATH
     fuzzywuzzy
     python-levenshtein
+    youtube-dl
 '''
 
 '''

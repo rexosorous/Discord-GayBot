@@ -59,7 +59,6 @@ class VoiceCommands(commands.Cog):
     '''
     def __init__(self, bot):
         self.bot = bot
-        self.FFMPEG_OPTIONS = {'executable': 'ffmpeg/ffmpeg.exe'}  # so the end user doesn't have to have ffmpeg installed to PATH
         self.instances = dict()
 
 
@@ -336,7 +335,7 @@ class VoiceCommands(commands.Cog):
                 best_confidence = confidence
                 best_clip = clip
 
-        audio_clip = discord.FFmpegPCMAudio(f'soundboard/{best_clip}', **self.FFMPEG_OPTIONS)
+        audio_clip = discord.FFmpegPCMAudio(f'soundboard/{best_clip}')
         data = {
             'ffmpeg': audio_clip,
             'title': f'{best_clip[:-4]} (soundboard)'
@@ -356,7 +355,7 @@ class VoiceCommands(commands.Cog):
         '''
         all_clips = listdir('soundboard/')
         filename = random.choice(all_clips)
-        audio_clip = discord.FFmpegPCMAudio(f'soundboard/{filename}', **self.FFMPEG_OPTIONS)
+        audio_clip = discord.FFmpegPCMAudio(f'soundboard/{filename}')
         data = {
             'ffmpeg': audio_clip,
             'title': f'{filename[:-4]} (soundboard)'
@@ -405,8 +404,8 @@ class VoiceCommands(commands.Cog):
         with YoutubeDL(yt_options) as ytdl:
             info = ytdl.extract_info(f'ytsearch:{search_term}', download=False)['entries'][0]
         url = info['url']
-        ffmpeg_addtl_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}    # this prevents the bot from prematurely disconnecting if it loses connection for a short period of time
-        audio_clip = discord.FFmpegPCMAudio(url, **self.FFMPEG_OPTIONS, **ffmpeg_addtl_options)
+        ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}    # this prevents the bot from prematurely disconnecting if it loses connection for a short period of time
+        audio_clip = discord.FFmpegPCMAudio(url, **ffmpeg_options)
         audio_clip_volume = discord.PCMVolumeTransformer(audio_clip, volume=0.3)
         data = {
             'ffmpeg': audio_clip_volume,
