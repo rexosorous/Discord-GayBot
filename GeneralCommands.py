@@ -4,6 +4,7 @@ from discord.ext import commands
 
 # local modules
 import utilities as util
+from Exceptions import *
 
 
 
@@ -31,7 +32,6 @@ class GeneralCommands(commands.Cog):
         Sends the bruh copy pasta
         '''
         await ctx.send(':warning:BRUH:warning:...:warning:BRUH:warning:...:warning:BRUH:warning:... \n\nThe :police_officer: Department of :house: Homeland :statue_of_liberty: Security :oncoming_police_car: has issued a :b:ruh Moment :warning: warning :construction: for the following districts: Ligma, Sugma, :b:ofa, and Sugondese. \n\nNumerous instances of :b:ruh moments :b:eing triggered by :eyes: cringe:grimacing: normies :toilet: have :alarm_clock: recently :clock2: occurred across the :earth_americas: continental :flag_us:United States:flag_us:. These individuals are :b:elieved to :b:e highly :gun: dangerous :knife: and should :no_entry_sign: not :x: :b:e approached. Citizens are instructed to remain inside and :lock:lock their :door:doors. \n\nUnder :x:no:no_entry: circumstances should any citizen :speak_no_evil: say "bruh" in reaction to an action performed :b:y a cringe:grimacing: normie:toilet: and should store the following items in a secure:lock: location: Jahcoins:euro:, V-bucks:yen:, Gekyume\'s foreskin:eggplant:, poop:poop: socks, juul:thought_balloon: pods, ball :cherries: crushers, and dip. \n\nRemain tuned for further instructions. \n\n:warning:BRUH:warning:...:warning:BRUH:warning:...:warning:BRUH:warning:...')
-        await ctx.messag.add_reaction('☑️')
 
 
 
@@ -55,8 +55,7 @@ class GeneralCommands(commands.Cog):
                 await ctx.send(embed=pretty_data)
                 await ctx.message.delete()
                 return
-        await ctx.message.add_reaction('❌')
-        await ctx.send(':no_entry_sign: Could not find that emoji.')
+        raise EmojiNotFound
 
 
 
@@ -77,23 +76,6 @@ class GeneralCommands(commands.Cog):
                 pretty_data.title = util.mock_msg(message.content)
                 break
         await ctx.send(embed=pretty_data)
-        await ctx.message.add_reaction('☑️')
-
-
-
-    @commands.command(aliases=['die', 'murder', 'strangle'])
-    async def kill(self, ctx):
-        '''
-        Gracefully stops the bot
-
-        Note:
-            Can only be used by me.
-            Yes this technically doxxes me, but whatever.
-        '''
-        if ctx.author.id == 158371798327492608:
-            await ctx.message.add_reaction('☑️')
-            await self.bot.get_cog('VoiceCommands').kill()
-            await self.bot.close()
 
 
 
@@ -107,9 +89,23 @@ class GeneralCommands(commands.Cog):
             Yes this technically doxxes me, but whatever.
         '''
         if ctx.author.id == 158371798327492608:
-            try:
-                self.bot.reload_extension('GeneralCommands')
-                self.bot.reload_extension('VoiceCommands')
-                await ctx.message.add_reaction('☑️')
-            except commands.errors.ExtensionFailed:
-                await ctx.message.add_reaction('❌')
+            instances = await self.bot.get_cog('VoiceCommands').get_instances()
+            self.bot.reload_extension('GeneralCommands')
+            self.bot.reload_extension('VoiceCommands')
+            self.bot.reload_extension('EventHandler')
+            await self.bot.get_cog('VoiceCommands').load_instances(instances)
+
+
+
+    @commands.command(aliases=['die', 'murder', 'strangle'])
+    async def kill(self, ctx):
+        '''
+        Gracefully stops the bot
+
+        Note:
+            Can only be used by me.
+            Yes this technically doxxes me, but whatever.
+        '''
+        if ctx.author.id == 158371798327492608:
+            await self.bot.get_cog('VoiceCommands').kill()
+            await self.bot.close()

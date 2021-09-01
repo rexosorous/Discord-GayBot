@@ -10,6 +10,7 @@ from youtube_dl import YoutubeDL
 
 # local modules
 import utilities as util
+from Exceptions import *
 
 
 
@@ -81,28 +82,32 @@ class VoiceCommands(commands.Cog):
 
 
 
+    # used to preserve the bot's current state when reloading the extension    
+    async def get_instances(self) -> dict:
+        return self.instances
+    async def load_instances(self, instances):
+        self.instances = instances
+
+
+
 ####################################################################################################################################
 # GENERIC FUNCTIONS
 ####################################################################################################################################
 
-    async def bot_is_connected(self, ctx):
+    async def bot_is_connected(self, ctx) -> bool:
         if not self.instances[ctx.guild.id]['voice']:
             return False
         return self.instances[ctx.guild.id]['voice'].is_connected()
 
-    async def user_in_channel(self, ctx):
-        if ctx.message.author.voice:
-            return True
-        await ctx.message.add_reaction('❌')
-        await ctx.send(':no_entry_sign: You must be in a voice channel to use that command.')
-        return False
+    async def user_in_channel(self, ctx) -> bool:
+        if not ctx.message.author.voice:
+            raise UserNotInVoiceChannel
+        return True
 
-    async def user_in_same_channel(self, ctx):
-        if ctx.message.author.voice.channel == self.instances[ctx.guild.id]['voice'].channel:
-            return True
-        await ctx.message.add_reaction('❌')
-        await ctx.send(':no_entry_sign: You must be in the same voice channel as me to use that command.')
-        return False
+    async def user_in_same_channel(self, ctx) -> bool:
+        if ctx.message.author.voice.channel != self.instances[ctx.guild.id]['voice'].channel:
+            raise UserNotInSameVoiceChannel
+        return True
 
 
 
@@ -176,7 +181,6 @@ class VoiceCommands(commands.Cog):
             if await self.user_in_same_channel(ctx):
                 # if the bot is already playing audio and the user invoking the command is in the same voice channel
                 self.instances[ctx.guild.id]['queue'].append(clip_data)
-                await ctx.message.add_reaction('☑️')
 
                 # pretty output using embed
                 pretty_data = discord.Embed()
@@ -196,7 +200,6 @@ class VoiceCommands(commands.Cog):
         else:
             # if the bot isn't playing audio and the user invoking the command is in any voice channel
             self.instances[ctx.guild.id]['queue'].append(clip_data)
-            await ctx.message.add_reaction('☑️')
             self.instances[ctx.guild.id]['voice'] = await ctx.message.author.voice.channel.connect()
             await self.play_next(ctx)
 
@@ -210,7 +213,6 @@ class VoiceCommands(commands.Cog):
         if not await self.user_in_channel(ctx) or not await self.bot_is_connected(ctx) or not await self.user_in_same_channel(ctx):
             return
         self.instances[ctx.guild.id]['voice'].stop()
-        await ctx.message.add_reaction('☑️')
 
 
 
@@ -248,7 +250,6 @@ class VoiceCommands(commands.Cog):
             pretty_data.description = 'There are no items in the queue.'
             pretty_data.set_footer(text='To add something to the queue, use "gay play <video>" or "gay soundboard <clip>"')
         await ctx.send(embed=pretty_data)
-        await ctx.message.add_reaction('☑️')
 
 
 
@@ -263,7 +264,6 @@ class VoiceCommands(commands.Cog):
         if not await self.user_in_channel(ctx) or not await self.bot_is_connected(ctx) or not await self.user_in_same_channel(ctx):
             return
         self.instances[ctx.guild.id]['queue'] = list()
-        await ctx.message.add_reaction('☑️')
 
 
 
@@ -281,6 +281,7 @@ class VoiceCommands(commands.Cog):
         '''
         if not await self.user_in_channel(ctx) or not await self.bot_is_connected(ctx) or not await self.user_in_same_channel(ctx):
             return
+        print('hello world')
         if index.lower() in ['first', 'next']:
             index = 0
         elif index.lower() in ['last', 'end']:
@@ -288,13 +289,10 @@ class VoiceCommands(commands.Cog):
         try:
             index = int(index)
             self.instances[ctx.guild.id]['queue'].pop(index)
-            await ctx.message.add_reaction('☑️')
         except ValueError:
-            await ctx.message.add_reaction('❌')
-            await ctx.send(':no_entry_sign: Only integers allowed.')
+            raise NotInteger
         except IndexError:
-            await ctx.message.add_reaction('❌')
-            await ctx.send(':no_entry_sign: That number does not represent an item in the queue.')
+            raise NotInQueue
 
 
 
@@ -308,7 +306,6 @@ class VoiceCommands(commands.Cog):
         self.instances[ctx.guild.id]['voice'].stop()
         self.instances[ctx.guild.id]['queue'] = list()
         await self.instances[ctx.guild.id]['voice'].disconnect()
-        await ctx.message.add_reaction('☑️')
 
 
 

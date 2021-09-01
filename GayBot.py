@@ -30,6 +30,7 @@ if __name__ == '__main__':
     bot = commands.Bot(command_prefix='gay ', activity=Game(name='gay help'))
     bot.load_extension('GeneralCommands')
     bot.load_extension('VoiceCommands')
+    bot.load_extension('EventHandler')
 
     @bot.event
     async def on_ready():
