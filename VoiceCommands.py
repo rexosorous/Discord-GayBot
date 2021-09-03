@@ -171,7 +171,7 @@ class VoiceCommands(commands.Cog):
                 if 'audio_url' in clip_data:
                     # if this is a youtube video
                     pretty_data.url = clip_data['video_url']
-                    pretty_data.description = f'Length: {int(clip_data["duration"]/60)}m {int(clip_data["duration"]%60)}s'
+                    pretty_data.description = f'Length: {clip_data["duration"]//60}m {clip_data["duration"]%60}s'
                     pretty_data.set_thumbnail(url=clip_data['thumbnail_url'])
                 else:
                     # if this is a soundboard clip
@@ -335,7 +335,9 @@ class VoiceCommands(commands.Cog):
                 best_confidence = confidence
                 best_clip = clip
 
-        audio_clip = FFmpegPCMAudio(f'soundboard/{best_clip}')
+        ffmpeg_options = {'options': '-af loudnorm=I=-16:LRA=11:TP=-2.5'}   # this normalizes the volume so things aren't overly loud or quiet
+        audio_clip = FFmpegPCMAudio(f'soundboard/{best_clip}', **ffmpeg_options)
+        audio_clip = PCMVolumeTransformer(audio_clip, volume=0.3)
         data = {
             'ffmpeg': audio_clip,
             'title': f'{best_clip[:-4]} (soundboard)'
@@ -355,7 +357,9 @@ class VoiceCommands(commands.Cog):
         '''
         all_clips = listdir('soundboard/')
         filename = choice(all_clips)
-        audio_clip = FFmpegPCMAudio(f'soundboard/{filename}')
+        ffmpeg_options = {'options': '-af loudnorm=I=-16:LRA=11:TP=-2.5'}   # this normalizes the volume so things aren't overly loud or quiet
+        audio_clip = FFmpegPCMAudio(f'soundboard/{filename}', **ffmpeg_options)
+        audio_clip = PCMVolumeTransformer(audio_clip, volume=0.3)
         data = {
             'ffmpeg': audio_clip,
             'title': f'{filename[:-4]} (soundboard)'
@@ -404,11 +408,14 @@ class VoiceCommands(commands.Cog):
         with YoutubeDL(yt_options) as ytdl:
             info = ytdl.extract_info(f'ytsearch:{search_term}', download=False)['entries'][0]
         url = info['url']
-        ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -af loudnorm=I=-16:LRA=11:TP=-1.5'}    # this prevents the bot from prematurely disconnecting if it loses connection for a short period of time
+        ffmpeg_options = {
+            'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', # this prevents the bot from prematurely disconnecting if it loses connection for a short period of time
+            'options': '-vn -af loudnorm=I=-16:LRA=11:TP=-2.5'  # this normalizes the volume so things aren't overly loud or quiet
+        }    
         audio_clip = FFmpegPCMAudio(url, **ffmpeg_options)
-        audio_clip_volume = PCMVolumeTransformer(audio_clip, volume=0.3)
+        audio_clip = PCMVolumeTransformer(audio_clip, volume=0.3)
         data = {
-            'ffmpeg': audio_clip_volume,
+            'ffmpeg': audio_clip,
             'title': info['title'],
             'duration': info['duration'],           # in seconds
             'thumbnail_url': info['thumbnail'],
