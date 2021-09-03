@@ -406,7 +406,10 @@ class VoiceCommands(commands.Cog):
         search_term = ' '.join(search_term)
         yt_options = {'verbose': 'False', 'format': 'bestaudio', 'noplaylist': 'True', 'cookiefile': 'cookies.txt'}
         with YoutubeDL(yt_options) as ytdl:
-            info = ytdl.extract_info(f'ytsearch:{search_term}', download=False)['entries'][0]
+            if search_term.startswith('http'):
+                info = ytdl.extract_info(search_term, download=False)
+            else:
+                info = ytdl.extract_info(f'ytsearch:{search_term}', download=False)['entries'][0]
         url = info['url']
         ffmpeg_options = {
             'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', # this prevents the bot from prematurely disconnecting if it loses connection for a short period of time
