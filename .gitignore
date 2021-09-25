@@ -127,6 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# custom
+*.token
 TODO.txt
 ffmpeg/*
 soundboard/*

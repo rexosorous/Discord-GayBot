@@ -1,8 +1,9 @@
 # standard libraries
 from asyncio import sleep
+from enum import Enum
 from os import listdir
 from random import choice
- 
+
 # dependencies
 from discord import Color, Embed, FFmpegPCMAudio, PCMVolumeTransformer
 from discord.ext import commands
@@ -23,6 +24,15 @@ def setup(bot):
 
 
 
+class AudioType(Enum):
+    '''
+    Simple Enum to differentiate what type of audio is being added to the queue
+    '''
+    YOUTUBE = 0
+    SOUNDBOARD = 1
+
+
+
 class VoiceCommands(commands.Cog):
     '''
     Holds all the voice-channel related commands
@@ -35,27 +45,17 @@ class VoiceCommands(commands.Cog):
                 discord.Guild.id (int): {
                     'voice': discord.VoiceClient,
                     'queue': [{
-                            'ffmpeg': discord.VoiceClient,
+                            'type': AudioType,
+                            'source': str,          # url or dir
                             'title': str,
                             'duration': int,        # seconds
                             'thumbnail_url': str,
-                            'audio_url': str,       # raw audio url
                             'video_url': str]       # youtube webpage
                         }]  # if it's a soudnboard clip, it will only have ffmpeg and title fields
                 }
             }
-        voice (discord.VoiceClient): is set to None on first init
-        queue (list[dict]): has the data for each clip to be played. the dicts have the form:
-            {
-                'ffmpeg': discord.VoiceClient,
-                'title': str,
-                'duration': int,        # seconds
-                'thumbnail_url': str,
-                'audio_url': str,       # raw audio url
-                'video_url': str]       # youtube webpage
-            }
-            note that soundboard audio clips will only have the first 2 fields
-        
+        loop_audio (bool): if True: will keep replaying the first item in the queue. vice-versa
+
     '''
     def __init__(self, bot):
         self.bot = bot
@@ -81,7 +81,7 @@ class VoiceCommands(commands.Cog):
 
 
 
-    # used to preserve the bot's current state when reloading the extension    
+    # used to preserve the bot's current state when reloading the extension
     def get_instances(self) -> dict:
         return self.instances
     def load_instances(self, instances):
@@ -93,6 +93,33 @@ class VoiceCommands(commands.Cog):
 # GENERIC FUNCTIONS
 ####################################################################################################################################
 
+    def get_audio_object(self, clip_data: dict) -> FFmpegPCMAudio:
+        '''
+        Converts the clip link/dir to be played into an discord.FFMpegPCMAudio object used for playing audio.
+
+        Args:
+            clip_data (dict): see self.instances[discord.Guild.id]['queue'][0]
+
+        Returns:
+            audio_clip (discord.FFmpegPCMAudio)
+        '''
+        if clip_data['type'] == AudioType.YOUTUBE:
+            ffmpeg_options = {
+                'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', # this prevents the bot from prematurely disconnecting if it loses connection for a short period of time
+                'options': '-vn -af loudnorm=I=-16:LRA=11:TP=-2.5'  # this normalizes the volume so things aren't overly loud or quiet
+            }
+            audio_clip = FFmpegPCMAudio(clip_data['source'], **ffmpeg_options)
+            audio_clip = PCMVolumeTransformer(audio_clip, volume=0.3)
+            return audio_clip
+
+        if clip_data['type'] == AudioType.SOUNDBOARD:
+            ffmpeg_options = {'options': '-af loudnorm=I=-16:LRA=11:TP=-2.5'}   # this normalizes the volume so things aren't overly loud or quiet
+            audio_clip = FFmpegPCMAudio(clip_data['source'], **ffmpeg_options)
+            audio_clip = PCMVolumeTransformer(audio_clip, volume=0.3)
+            return audio_clip
+
+
+
     async def play_next(self, ctx):
         '''
         A recursive function that plays all the audio clips in the queue
@@ -103,14 +130,13 @@ class VoiceCommands(commands.Cog):
         '''
         if self.instances[ctx.guild.id]['queue']:
             clip_data = self.instances[ctx.guild.id]['queue'].pop(0)
-            
+
             # pretty output using embed
             pretty_data = Embed()
             pretty_data.title = clip_data['title']
             pretty_data.color = Color.green()
             pretty_data.set_author(name='Now Playing', icon_url='https://i.imgur.com/8zZGsGQ.png')
-            if 'audio_url' in clip_data:
-                # if this is a youtube video
+            if clip_data['type'] == AudioType.YOUTUBE:
                 pretty_data.url = clip_data['video_url']
                 pretty_data.description = f'Length: {int(clip_data["duration"]/60)}m {int(clip_data["duration"]%60)}s'
                 pretty_data.set_thumbnail(url=clip_data['thumbnail_url'])
@@ -118,19 +144,22 @@ class VoiceCommands(commands.Cog):
                 # if this is a soundboard clip
                 pretty_data.description = 'Length: This is a soundboard clip and I\'m too lazy to code in the length. It should be over soon anyways.'
 
+            # still pretty output stuff
             if self.instances[ctx.guild.id]['queue']:
                 next_clip = self.instances[ctx.guild.id]['queue'][0]
-                val = f'[{next_clip["title"]}]({next_clip["video_url"]})' if 'audio_url' in next_clip else next_clip['title']
+                val = f'[{next_clip["title"]}]({next_clip["video_url"]})' if next_clip['type'] == AudioType.YOUTUBE else next_clip['title']
                 pretty_data.add_field(name='Up Next', value=val)
             else:
                 pretty_data.add_field(name='Up Next', value='This is the last video in the queue')
             await ctx.send(embed=pretty_data)
 
-            self.instances[ctx.guild.id]['voice'].play(clip_data['ffmpeg'])
+            # actually play audio
+            self.instances[ctx.guild.id]['voice'].play(self.get_audio_object(clip_data))
             # waits 3 seconds between clips so it doesn't just play back to back
             while self.instances[ctx.guild.id]['voice'].is_playing(): # this while loop is needed like this because discord.VoiceClient.play is not asynchronous for some reason
                 await sleep(0.5)
             await sleep(3)
+
             await self.play_next(ctx)
         else:
             await self.instances[ctx.guild.id]['voice'].disconnect()
@@ -142,8 +171,8 @@ class VoiceCommands(commands.Cog):
         Does all the preparations needed to start playing audio.
         1. Determines if the bot should even play audio (ie. if the command is legal)
             a command is legal if:
-            the invoker is in a voice channel AND 
-            (the bot is not already in a voice channel OR 
+            the invoker is in a voice channel AND
+            (the bot is not already in a voice channel OR
             the invoker is in the same voice channel)
         2. Joins a voice channel if the bot isn't already in one
         3. Adds a clip to the queue
@@ -168,8 +197,7 @@ class VoiceCommands(commands.Cog):
                 pretty_data.color = Color.green()
                 pretty_data.set_author(name='Added to Queue', icon_url='https://i.imgur.com/zRn90U1.png')
                 pretty_data.set_footer(text=f'To undo, use "gay queue remove last" or "gay queue remove {len(self.instances[ctx.guild.id]["queue"])-1}"')
-                if 'audio_url' in clip_data:
-                    # if this is a youtube video
+                if clip_data['type'] == AudioType.YOUTUBE:
                     pretty_data.url = clip_data['video_url']
                     pretty_data.description = f'Length: {clip_data["duration"]//60}m {clip_data["duration"]%60}s'
                     pretty_data.set_thumbnail(url=clip_data['thumbnail_url'])
@@ -224,7 +252,7 @@ class VoiceCommands(commands.Cog):
         pretty_data.color = Color.green()
         pretty_data.set_author(name='Queue', icon_url='https://i.imgur.com/1P4LiHx.png')
         for clip_data in self.instances[ctx.guild.id]['queue']:
-            title = f'[{clip_data["title"]}]({clip_data["video_url"]})' if 'audio_url' in clip_data else clip_data["title"]
+            title = f'[{clip_data["title"]}]({clip_data["video_url"]})' if clip_data['type'] == AudioType.YOUTUBE else clip_data["title"]
             line = f'`#{self.instances[ctx.guild.id]["queue"].index(clip_data)}:` {title}'
             queue_list.append(line)
         if queue_list:
@@ -335,11 +363,9 @@ class VoiceCommands(commands.Cog):
                 best_confidence = confidence
                 best_clip = clip
 
-        ffmpeg_options = {'options': '-af loudnorm=I=-16:LRA=11:TP=-2.5'}   # this normalizes the volume so things aren't overly loud or quiet
-        audio_clip = FFmpegPCMAudio(f'soundboard/{best_clip}', **ffmpeg_options)
-        audio_clip = PCMVolumeTransformer(audio_clip, volume=0.3)
         data = {
-            'ffmpeg': audio_clip,
+            'type': AudioType.SOUNDBOARD,
+            'source': f'soundboard/{best_clip}',
             'title': f'{best_clip[:-4]} (soundboard)'
         }
         await self.join_and_play(ctx, data)
@@ -357,15 +383,13 @@ class VoiceCommands(commands.Cog):
         '''
         all_clips = listdir('soundboard/')
         filename = choice(all_clips)
-        ffmpeg_options = {'options': '-af loudnorm=I=-16:LRA=11:TP=-2.5'}   # this normalizes the volume so things aren't overly loud or quiet
-        audio_clip = FFmpegPCMAudio(f'soundboard/{filename}', **ffmpeg_options)
-        audio_clip = PCMVolumeTransformer(audio_clip, volume=0.3)
         data = {
-            'ffmpeg': audio_clip,
+            'type': AudioType.SOUNDBOARD,
+            'source': f'soundboard/{filename}',
             'title': f'{filename[:-4]} (soundboard)'
         }
         await self.join_and_play(ctx, data)
-        
+
 
 
     @soundboard.command(name='checksoundboard', aliases=['help', 'check', 'names', 'list', 'ls', 'show'])
@@ -385,7 +409,7 @@ class VoiceCommands(commands.Cog):
         pretty_data.set_footer(text=f'To play a soundboard clip, use "gay soundboard <clip>"')
         await ctx.send(embed=pretty_data)
 
-        
+
 
 ####################################################################################################################################
 # YOUTUBE FUNCTIONS
@@ -411,18 +435,12 @@ class VoiceCommands(commands.Cog):
             else:
                 info = ytdl.extract_info(f'ytsearch:{search_term}', download=False)['entries'][0]
         url = info['url']
-        ffmpeg_options = {
-            'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', # this prevents the bot from prematurely disconnecting if it loses connection for a short period of time
-            'options': '-vn -af loudnorm=I=-16:LRA=11:TP=-2.5'  # this normalizes the volume so things aren't overly loud or quiet
-        }    
-        audio_clip = FFmpegPCMAudio(url, **ffmpeg_options)
-        audio_clip = PCMVolumeTransformer(audio_clip, volume=0.3)
         data = {
-            'ffmpeg': audio_clip,
+            'type': AudioType.YOUTUBE,
+            'source': url,
             'title': info['title'],
             'duration': info['duration'],           # in seconds
             'thumbnail_url': info['thumbnail'],
-            'audio_url': info['url'],               # raw audio url
             'video_url': info['webpage_url']        # youtube webpage
         }
         await self.join_and_play(ctx, data)
