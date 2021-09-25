@@ -60,6 +60,7 @@ class VoiceCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.instances = dict()
+        self.loop_audio = False
 
 
 
@@ -129,13 +130,16 @@ class VoiceCommands(commands.Cog):
             NOT A COMMAND
         '''
         if self.instances[ctx.guild.id]['queue']:
-            clip_data = self.instances[ctx.guild.id]['queue'].pop(0)
+            clip_data = self.instances[ctx.guild.id]['queue'][0]
 
             # pretty output using embed
             pretty_data = Embed()
             pretty_data.title = clip_data['title']
             pretty_data.color = Color.green()
-            pretty_data.set_author(name='Now Playing', icon_url='https://i.imgur.com/8zZGsGQ.png')
+            if self.loop_audio:
+                pretty_data.set_author(name='Now Playing on Repeat 🔂', icon_url='https://i.imgur.com/8zZGsGQ.png')
+            else:
+                pretty_data.set_author(name='Now Playing', icon_url='https://i.imgur.com/8zZGsGQ.png')
             if clip_data['type'] == AudioType.YOUTUBE:
                 pretty_data.url = clip_data['video_url']
                 pretty_data.description = f'Length: {int(clip_data["duration"]/60)}m {int(clip_data["duration"]%60)}s'
@@ -145,8 +149,8 @@ class VoiceCommands(commands.Cog):
                 pretty_data.description = 'Length: This is a soundboard clip and I\'m too lazy to code in the length. It should be over soon anyways.'
 
             # still pretty output stuff
-            if self.instances[ctx.guild.id]['queue']:
-                next_clip = self.instances[ctx.guild.id]['queue'][0]
+            if len(self.instances[ctx.guild.id]['queue']) > 1:
+                next_clip = self.instances[ctx.guild.id]['queue'][1]
                 val = f'[{next_clip["title"]}]({next_clip["video_url"]})' if next_clip['type'] == AudioType.YOUTUBE else next_clip['title']
                 pretty_data.add_field(name='Up Next', value=val)
             else:
@@ -160,6 +164,9 @@ class VoiceCommands(commands.Cog):
                 await sleep(0.5)
             await sleep(3)
 
+            # don't pop from queue unless the 'loop' feature is on
+            if not self.loop_audio:
+                self.instances[ctx.guild.id]['queue'].pop(0)
             await self.play_next(ctx)
         else:
             await self.instances[ctx.guild.id]['voice'].disconnect()
@@ -225,6 +232,44 @@ class VoiceCommands(commands.Cog):
         Skips the currently playing audio clip if there is one
         '''
         self.instances[ctx.guild.id]['voice'].stop()
+        if self.loop_audio:
+            self.instances[ctx.guild.id]['queue'].pop(0)
+
+
+
+    @commands.group(name='loop', aliases=['repeat', 'replay'], case_insensitive=True, invoke_without_command=True)
+    async def loop(self, ctx):
+        '''
+        Toggles the loop feature which will always loop the first audio clip in the queue.
+
+        Note:
+            You can still use commands like skip to move on to the next clip while keeping loop enabled.
+        '''
+        if self.instances[ctx.guild.id]['voice'] and self.instances[ctx.guild.id]['voice'].is_connected(): # if the bot is in a voice channel
+            if not ctx.message.author.voice:
+                raise UserNotInVoiceChannel
+
+            if ctx.message.author.voice.channel != self.instances[ctx.guild.id]['voice'].channel:
+                raise UserNotInSameVoiceChannel
+
+        if not self.loop_audio:
+            await ctx.send(':repeat_one: Looping is now enabled :repeat_one:')
+            self.loop_audio = True
+        else:
+            await ctx.send('Looping is now **disabled**')
+            self.loop_audio = False
+
+
+
+    @loop.command(name='check', aliases=['show', 'status'])
+    async def check_loop(self, ctx):
+        '''
+        Shows whether or not audio looping is enabled
+        '''
+        if self.loop_audio:
+            await ctx.send(':repeat_one: Looping is enabled :repeat_one:')
+        else:
+            await ctx.send('Looping is **disabled**')
 
 
 
