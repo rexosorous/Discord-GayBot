@@ -1,4 +1,5 @@
 # standard libraries
+import json
 from random import randint
 
 # dependencies
@@ -23,6 +24,8 @@ class GeneralCommands(commands.Cog):
     '''
     Holds all the general use commands.
     '''
+    STAR_FILE = 'gold_stars.json'
+
     def __init__(self, bot):
         self.bot = bot
 
@@ -63,6 +66,9 @@ class GeneralCommands(commands.Cog):
     async def mock(self, ctx, user):
         '''
         Mocks a user by randomizing the capitilzation in that user's last message
+
+        Args:
+            user (str)
         '''
         user = ctx.message.mentions[0]
 
@@ -82,6 +88,119 @@ class GeneralCommands(commands.Cog):
                 pretty_data.title = mocked
                 break
         await ctx.send(embed=pretty_data)
+
+
+
+    @commands.group(name='star', aliases=['goldstar'], case_insensitive=True, invoke_without_command=True)
+    async def star(self, ctx):
+        '''
+        Command group for star command so that commands look like
+        gay star leaderboard
+        gay star give @user 2
+        Defaults to showing the leaderboard
+        '''
+        await self.star_list(self, ctx)
+
+
+
+    @star.command(name='leaderboard', aliases=['list', 'show'])
+    async def star_list(self, ctx):
+        '''
+        Shows the leaderboard/full list of users with gold stars ordered by gold star count
+
+        Note:
+            Is part of a group so is invoked similarly to 'star leaderboard'
+        '''
+        with open(self.STAR_FILE, 'r') as file:
+            star_data = json.load(file)
+
+        output = ''
+        for record in sorted(star_data.items(), key=lambda data: data[1], reverse=True):    # sort by star count
+            output += f'{await ctx.guild.fetch_member(int(record[0]))}: {record[1]} ⭐' # prettify
+
+        pretty_data = Embed()
+        pretty_data.color = Color.green()
+        pretty_data.set_author(name='⭐ Star Leaderboard ⭐')
+        pretty_data.description = output
+        await ctx.send(embed=pretty_data)
+
+
+
+    @star.command(name='check')
+    async def star_check(self, ctx, user=None):
+        '''
+        Shows how many gold stars a user has
+
+        Args:
+            user (str, optional): must be an @ mention!! if not given, will default to checking message author's stars
+
+        Note:
+            Is part of a group so is invoked similarly to 'star check @user'
+        '''
+        with open(self.STAR_FILE, 'r') as file:
+            star_data = json.load(file)
+
+        user = await ctx.guild.fetch_member(user[3:-1]) if user else ctx.author # if user arg not given, use author
+        user_id_str = str(user.id)      # this is necessary becuase json format cannot have ints has keys and converts them to strings when using json.dump()
+        if user_id_str not in star_data:
+            star_data[user_id_str] = 0
+
+        pretty_data = Embed()
+        pretty_data.color = Color.green()
+        pretty_data.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
+        pretty_data.description = f'⭐ {star_data[user_id_str]} Gold Stars ⭐'
+        await ctx.send(embed=pretty_data)
+
+
+
+    @commands.has_permissions(kick_members=True) # checks if user is a mod because only mods should be able to kick members
+    @star.command(name='give', aliases=['award'])
+    async def star_give(self, ctx, user, amount=1):
+        '''
+        Gives gold stars to a user
+
+        Args:
+            user (str): must be an @ mention!!
+            amount (str, optional): the amount of stars to give to the user. defaults to 1
+
+        Note:
+            Is part of a group so is invoked similarly to 'star give @user <amount>'
+        '''
+        with open(self.STAR_FILE, 'r') as file:
+            star_data = json.load(file)
+
+        user = await ctx.guild.fetch_member(user[3:-1])
+        user_id_str = str(user.id)      # this is necessary becuase json format cannot have ints has keys and converts them to strings when using json.dump()
+        if user_id_str not in star_data:
+            star_data[user_id_str] = 0
+        star_data[user_id_str] += int(amount)
+
+        with open(self.STAR_FILE, 'w') as file:
+            json.dump(star_data, file)
+
+        pretty_data = Embed()
+        pretty_data.color = Color.green()
+        pretty_data.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
+        pretty_data.description = f'⭐ Now has {star_data[user_id_str]} Gold Stars ⭐'
+        await ctx.send(embed=pretty_data)
+
+
+
+    @commands.has_permissions(kick_members=True) # checks if user is a mod because only mods should be able to kick members
+    @star.command(name='remove', aliases=['rm'])
+    async def star_remove(self, ctx, user, amount=1):
+        '''
+        Removes gold stars to a user
+
+        Args:
+            user (str): must be an @ mention!!
+            amount (str, optional): the amount of stars to give to the user. defaults to 1
+
+        Note:
+            Is part of a group so is invoked similarly to 'star remove @user <amount>'
+            Just calls self.star_give() with a negative number so logic isn't repeated twice
+        '''
+        await self.star_give(ctx, user, int(amount)*-1)
 
 
 
@@ -109,7 +228,7 @@ class GeneralCommands(commands.Cog):
         Gracefully stops the bot
 
         Note:
-            Can only be used by me.\
+            Can only be used by me.
         '''
         await self.bot.get_cog('VoiceCommands').kill()
         await self.bot.close()

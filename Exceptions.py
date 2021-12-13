@@ -25,7 +25,7 @@ def is_bot_in_VC():
 
 def is_user_in_VC():
     def predicate(ctx):
-        if not ctx.message.author.voice:
+        if not ctx.author.voice:
             raise UserNotInVoiceChannel
         return True
     return commands.check(predicate)
@@ -33,7 +33,7 @@ def is_user_in_VC():
 def is_user_in_same_VC():
     def predicate(ctx):
         voice = ctx.bot.get_cog('VoiceCommands').get_instances()
-        if ctx.message.author.voice.channel != voice[ctx.guild.id]['voice'].channel:
+        if ctx.author.voice.channel != voice[ctx.guild.id]['voice'].channel:
             raise UserNotInSameVoiceChannel
         return True
     return commands.check(predicate)
@@ -71,4 +71,4 @@ class NotInQueue(GayBotException):
 
 class BotNotInVoiceChannel(GayBotException):
     def __init__(self):
-        super().__init__('You can\'t do that. The bot isn\'t even playing anything.')  
+        super().__init__('You can\'t do that. The bot isn\'t even playing anything.')
