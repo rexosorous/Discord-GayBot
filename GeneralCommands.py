@@ -116,7 +116,8 @@ class GeneralCommands(commands.Cog):
 
         output = ''
         for record in sorted(star_data.items(), key=lambda data: data[1], reverse=True):    # sort by star count
-            output += f'{await ctx.guild.fetch_member(int(record[0]))}: {record[1]} ⭐' # prettify
+            username = await ctx.guild.fetch_member(int(record[0]))
+            output += f'{username}: {record[1]} ⭐' # prettify
 
         pretty_data = Embed()
         pretty_data.color = Color.green()
