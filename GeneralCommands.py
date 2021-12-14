@@ -181,7 +181,7 @@ class GeneralCommands(commands.Cog):
 
         pretty_data = Embed()
         pretty_data.color = Color.green()
-        pretty_data.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar_url)
+        pretty_data.set_author(name=user.display_name, icon_url=ctx.user.avatar_url)
         pretty_data.description = f'⭐ Now has {star_data[user_id_str]} Gold Stars ⭐'
         await ctx.send(embed=pretty_data)
 
