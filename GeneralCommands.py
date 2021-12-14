@@ -155,7 +155,7 @@ class GeneralCommands(commands.Cog):
 
 
     @commands.has_permissions(kick_members=True) # checks if user is a mod because only mods should be able to kick members
-    @star.command(name='give', aliases=['award'])
+    @star.command(name='give', aliases=['award', 'add'])
     async def star_give(self, ctx, user, amount=1):
         '''
         Gives gold stars to a user
@@ -188,7 +188,7 @@ class GeneralCommands(commands.Cog):
 
 
     @commands.has_permissions(kick_members=True) # checks if user is a mod because only mods should be able to kick members
-    @star.command(name='remove', aliases=['rm'])
+    @star.command(name='remove', aliases=['rm', 'sub', 'subtract'])
     async def star_remove(self, ctx, user, amount=1):
         '''
         Removes gold stars to a user
