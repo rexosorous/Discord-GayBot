@@ -10,7 +10,7 @@ Now that I've matured at least a little bit as a developer, this will (hopefully
 ### pip packages
 * [discord.py[voice]](https://github.com/Rapptz/discord.py)
 * [fuzzywuzzy](https://github.com/seatgeek/fuzzywuzzy) and it's requirements
-* [youtube-dl](https://github.com/ytdl-org/youtube-dl)
+* [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 
 ### Programs
 * [ffmpeg](https://ffmpeg.org/download.html). If you're on Windows, make sure to install it to PATH

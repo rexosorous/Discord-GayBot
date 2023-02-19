@@ -8,7 +8,7 @@ from random import choice
 from discord import Color, Embed, FFmpegPCMAudio, PCMVolumeTransformer
 from discord.ext import commands
 from fuzzywuzzy import fuzz
-from youtube_dl import YoutubeDL
+from yt_dlp import YoutubeDL
 
 # local modules
 from Exceptions import *
