@@ -1,6 +1,7 @@
 # standard libraries
 from asyncio import sleep
 from enum import Enum
+import logging
 from os import listdir
 from random import choice
 
@@ -60,6 +61,7 @@ class VoiceCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.instances = dict()
+        self.logger = logging.getLogger('discord')
 
 
 
@@ -158,6 +160,7 @@ class VoiceCommands(commands.Cog):
             await ctx.send(embed=pretty_data)
 
             # actually play audio
+            self.logger.info(f'[{ctx.command.module}.{ctx.command.name}] playing {clip_data["title"]}...')
             self.instances[ctx.guild.id]['voice'].play(self.get_audio_object(clip_data))
             # waits 3 seconds between clips so it doesn't just play back to back
             while self.instances[ctx.guild.id]['voice'].is_playing(): # this while loop is needed like this because discord.VoiceClient.play is not asynchronous for some reason
@@ -197,6 +200,7 @@ class VoiceCommands(commands.Cog):
         if voice and voice.is_connected():
             if voice.channel == ctx.message.author.voice.channel:
                 # if the bot is already playing audio and the user invoking the command is in the same voice channel, add to queue but don't call self.play_next()
+                self.logger.info(f'[{ctx.command.module}.{ctx.command.name}] bot is already in the voice channel')
                 self.instances[ctx.guild.id]['queue'].append(clip_data)
 
                 # pretty output using embed
@@ -218,6 +222,7 @@ class VoiceCommands(commands.Cog):
                 raise UserNotInSameVoiceChannel
         else:
             # if the bot isn't playing audio and the user invoking the command is in any voice channel, join the channel and start playing
+            self.logger.info(f'[{ctx.command.module}.{ctx.command.name}] joining channel {ctx.message.author.voice.channel}')
             self.instances[ctx.guild.id]['queue'].append(clip_data)
             self.instances[ctx.guild.id]['voice'] = await ctx.message.author.voice.channel.connect()
             await self.play_next(ctx)
@@ -414,6 +419,7 @@ class VoiceCommands(commands.Cog):
             'source': f'soundboard/{best_clip}',
             'title': f'{best_clip[:-4]} (soundboard)'
         }
+        self.logger.info(f'[{ctx.command.module}.{ctx.command.name}] got soundboard clip: {data["title"]}')
         await self.join_and_play(ctx, data)
 
 
@@ -434,6 +440,7 @@ class VoiceCommands(commands.Cog):
             'source': f'soundboard/{filename}',
             'title': f'{filename[:-4]} (soundboard)'
         }
+        self.logger.info(f'[{ctx.command.module}.{ctx.command.name}] got soundboard clip: {data["title"]}')
         await self.join_and_play(ctx, data)
 
 
@@ -489,4 +496,5 @@ class VoiceCommands(commands.Cog):
             'thumbnail_url': info['thumbnail'],
             'video_url': info['webpage_url']        # youtube webpage
         }
+        self.logger.info(f'[{ctx.command.module}.{ctx.command.name}] got youtube audio: {data["title"]} | {data["video_url"]}')
         await self.join_and_play(ctx, data)

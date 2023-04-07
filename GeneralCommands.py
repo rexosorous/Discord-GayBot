@@ -1,5 +1,6 @@
 # standard libraries
 import json
+import logging
 from random import randint
 
 # dependencies
@@ -28,6 +29,7 @@ class GeneralCommands(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self.logger = logging.getLogger('discord')
 
 
 
@@ -79,6 +81,7 @@ class GeneralCommands(commands.Cog):
         pretty_data.set_image(url='https://i.imgur.com/xQu6gKd.jpg')
         async for message in ctx.channel.history(limit=50):
             if message.author == user:
+                self.logger.info(f'[{ctx.command.module}.{ctx.command.name}] modifying message: {message.content}')
                 mocked = ''
                 for char in message.content:
                     if randint(0, 1) == 1:
