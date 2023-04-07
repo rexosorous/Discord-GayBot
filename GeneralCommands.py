@@ -11,12 +11,12 @@ from Exceptions import *
 
 
 
-def setup(bot):
+async def setup(bot):
     '''
     Used by discord.commands.Bot.load_extension() to load this cog onto the bot.
     This is required to allow hot reloading with GeneralCommands.reload()
     '''
-    bot.add_cog(GeneralCommands(bot))
+    await bot.add_cog(GeneralCommands(bot))
 
 
 
@@ -215,9 +215,9 @@ class GeneralCommands(commands.Cog):
             Can only be used by me.
         '''
         instances = self.bot.get_cog('VoiceCommands').get_instances()
-        self.bot.reload_extension('GeneralCommands')
-        self.bot.reload_extension('VoiceCommands')
-        self.bot.reload_extension('EventHandler')
+        await self.bot.reload_extension('GeneralCommands')
+        await self.bot.reload_extension('VoiceCommands')
+        await self.bot.reload_extension('EventHandler')
         self.bot.get_cog('VoiceCommands').load_instances(instances)
 
 

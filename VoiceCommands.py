@@ -15,12 +15,12 @@ from Exceptions import *
 
 
 
-def setup(bot):
+async def setup(bot):
     '''
     Used by discord.commands.Bot.load_extension() to load this cog onto the bot.
     This is required to allow hot reloading with GeneralCommands.reload()
     '''
-    bot.add_cog(VoiceCommands(bot))
+    await bot.add_cog(VoiceCommands(bot))
 
 
 
@@ -109,13 +109,13 @@ class VoiceCommands(commands.Cog):
                 'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', # this prevents the bot from prematurely disconnecting if it loses connection for a short period of time
                 'options': '-vn -af loudnorm=I=-16:LRA=11:TP=-2.5'  # this normalizes the volume so things aren't overly loud or quiet
             }
-            audio_clip = FFmpegPCMAudio(clip_data['source'], **ffmpeg_options)
+            audio_clip = FFmpegPCMAudio(clip_data['source'], executable=r'C:\ffmpeg\bin\ffmpeg.exe', **ffmpeg_options)
             audio_clip = PCMVolumeTransformer(audio_clip, volume=0.3)
             return audio_clip
 
         if clip_data['type'] == AudioType.SOUNDBOARD:
             ffmpeg_options = {'options': '-af loudnorm=I=-16:LRA=11:TP=-2.5'}   # this normalizes the volume so things aren't overly loud or quiet
-            audio_clip = FFmpegPCMAudio(clip_data['source'], **ffmpeg_options)
+            audio_clip = FFmpegPCMAudio(clip_data['source'], executable=r'C:\ffmpeg\bin\ffmpeg.exe', **ffmpeg_options)
             audio_clip = PCMVolumeTransformer(audio_clip, volume=0.3)
             return audio_clip
 
@@ -166,7 +166,8 @@ class VoiceCommands(commands.Cog):
 
             # don't pop from queue unless the 'loop' feature is on
             if not self.instances[ctx.guild.id]['loop_audio']:
-                self.instances[ctx.guild.id]['queue'].pop(0)
+                if self.instances[ctx.guild.id]['queue']:
+                    self.instances[ctx.guild.id]['queue'].pop(0)
             await self.play_next(ctx)
         else:
             await self.instances[ctx.guild.id]['voice'].disconnect()

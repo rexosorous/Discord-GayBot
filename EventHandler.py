@@ -13,7 +13,7 @@ This is mainly used for good/smart error handling
 
 
 
-def setup(bot):
+async def setup(bot):
     '''
     Used by discord.commands.Bot.load_extension() to load this cog onto the bot.
     This is required to allow hot reloading with GeneralCommands.reload()
