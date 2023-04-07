@@ -1,6 +1,8 @@
 # standard libraries
+import getopt
 import logging
 import logging.handlers
+import sys
 
 # dependencies
 from discord import Game
@@ -13,6 +15,14 @@ if __name__ == '__main__':
     '''
     essentially a main.py file
     '''
+    # allow the user to input their own login file with cmdline
+    opts, _ = getopt.getopt(sys.argv[1:], "i:")
+    token_file = 'login.token'
+
+    for opt, arg in opts:
+        if opt == '-i':
+            token_file = arg
+
     # permissions
     intents = Intents.default()
     intents.emojis = True
@@ -53,6 +63,6 @@ if __name__ == '__main__':
     async def on_command(ctx):
         logger.info(f'[{ctx.command.module}.{ctx.command.name}] executing...')
 
-    with open('login.token', 'r') as file:
+    with open(token_file, 'r') as file:
         token = file.read()
     bot.run(token, log_handler=None)
